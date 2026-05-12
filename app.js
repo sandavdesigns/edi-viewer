@@ -21,6 +21,8 @@ const state = {
 
 const INITIAL_VISIBLE_ROWS = 500;
 const ROW_LOAD_STEP = 500;
+const MEASUREMENT_CHART_WIDTH = 1100;
+const MEASUREMENT_PLOT = { x: 44, y: 18, width: 1018, height: 162 };
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -912,7 +914,7 @@ function includesFilter(value, filter) {
 function renderChart(parsed) {
   const svg = els.chart;
   svg.innerHTML = "";
-  svg.setAttribute("viewBox", state.chartMode === "quantities" ? "0 0 720 220" : "0 0 720 300");
+  svg.setAttribute("viewBox", state.chartMode === "quantities" ? `0 0 ${MEASUREMENT_CHART_WIDTH} 220` : "0 0 720 300");
 
   if (!parsed) {
     drawEmptyChart(svg);
@@ -927,7 +929,7 @@ function renderChart(parsed) {
 }
 
 function drawEmptyChart(svg) {
-  addText(svg, 360, 145, "Keine Datei geladen", "middle", "var(--muted)", 18, 700);
+  addText(svg, MEASUREMENT_CHART_WIDTH / 2, 145, "Keine Datei geladen", "middle", "var(--muted)", 18, 700);
 }
 
 function drawSegmentChart(svg, segments) {
@@ -994,12 +996,12 @@ function drawMeasurementChart(svg, rows) {
   const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
 
   if (!values.length) {
-    addPlotBackground(svg, 34, 18, 672, 162);
-    addText(svg, 360, 112, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
+    addPlotBackground(svg, MEASUREMENT_PLOT.x, MEASUREMENT_PLOT.y, MEASUREMENT_PLOT.width, MEASUREMENT_PLOT.height);
+    addText(svg, MEASUREMENT_CHART_WIDTH / 2, 112, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
     return;
   }
 
-  const plot = { x: 34, y: 18, width: 672, height: 162 };
+  const plot = MEASUREMENT_PLOT;
   addPlotBackground(svg, plot.x, plot.y, plot.width, plot.height);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
