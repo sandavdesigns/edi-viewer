@@ -1521,6 +1521,45 @@ function renderValidationReport() {
   els.validationList.append(fragment);
 }
 
+function openValidationDialog() {
+  els.validationSummary.textContent = "Prüfung läuft...";
+  els.validationList.innerHTML = '<div class="validation-item"><span class="severity">Info</span><div><strong>Analyse wird erstellt</strong><div>Struktur, Lücken und Ausreißer werden geprüft.</div></div><span></span></div>';
+  openDialog(els.validationDialog);
+  window.setTimeout(() => {
+    try {
+      renderValidationReport();
+    } catch (error) {
+      els.validationSummary.textContent = "Fehler";
+      els.validationList.innerHTML = "";
+      const row = document.createElement("div");
+      row.className = "validation-item";
+      row.innerHTML = '<span class="severity error">Fehler</span><div><strong>Prüfung fehlgeschlagen</strong><div></div></div><span></span>';
+      row.querySelector("div div").textContent = error?.message || "Unbekannter Fehler";
+      els.validationList.append(row);
+    }
+  }, 0);
+}
+
+function openDialog(dialog) {
+  try {
+    if (typeof dialog.showModal === "function" && !dialog.open) {
+      dialog.showModal();
+      return;
+    }
+  } catch {
+    // Fall back to the non-modal open attribute for older or stricter browser contexts.
+  }
+  dialog.setAttribute("open", "");
+}
+
+function closeDialog(dialog) {
+  if (typeof dialog.close === "function" && dialog.open) {
+    dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
+}
+
 function download(filename, mimeType, content) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -1924,36 +1963,27 @@ function wireEvents() {
   });
 
   els.infoOpen.addEventListener("click", () => {
-    if (typeof els.infoDialog.showModal === "function") {
-      els.infoDialog.showModal();
-    } else {
-      els.infoDialog.setAttribute("open", "");
-    }
+    openDialog(els.infoDialog);
   });
 
   els.infoClose.addEventListener("click", () => {
-    els.infoDialog.close();
+    closeDialog(els.infoDialog);
   });
 
   els.infoDialog.addEventListener("click", (event) => {
-    if (event.target === els.infoDialog) els.infoDialog.close();
+    if (event.target === els.infoDialog) closeDialog(els.infoDialog);
   });
 
   els.validationOpen.addEventListener("click", () => {
-    renderValidationReport();
-    if (typeof els.validationDialog.showModal === "function") {
-      els.validationDialog.showModal();
-    } else {
-      els.validationDialog.setAttribute("open", "");
-    }
+    openValidationDialog();
   });
 
   els.validationClose.addEventListener("click", () => {
-    els.validationDialog.close();
+    closeDialog(els.validationDialog);
   });
 
   els.validationDialog.addEventListener("click", (event) => {
-    if (event.target === els.validationDialog) els.validationDialog.close();
+    if (event.target === els.validationDialog) closeDialog(els.validationDialog);
   });
 
   els.treeToggle.addEventListener("click", () => {
