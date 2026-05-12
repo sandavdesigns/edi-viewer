@@ -3,6 +3,9 @@
 const state = {
   fileName: "",
   parsed: null,
+  documents: [],
+  activeDocumentId: null,
+  nextDocumentId: 1,
   segmentFilter: "",
   businessFilter: "",
   businessDetailFilter: "",
@@ -128,6 +131,7 @@ const QUALIFIER_LABELS = {
 const els = {
   fileInputSecondary: document.querySelector("#fileInputSecondary"),
   dropZone: document.querySelector("#dropZone"),
+  documentTabs: document.querySelector("#documentTabs"),
   fileName: document.querySelector("#fileName"),
   messageType: document.querySelector("#messageType"),
   segmentCount: document.querySelector("#segmentCount"),
@@ -566,6 +570,7 @@ function render() {
   els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
   renderFacts(parsed);
+  renderDocumentTabs();
   renderMeteringPointFilter(parsed);
   renderObisFilter(parsed);
   renderTree(parsed);
@@ -573,6 +578,39 @@ function render() {
   renderBusinessTable(parsed);
   renderSegmentsTable(parsed);
   renderChart(parsed);
+}
+
+function renderDocumentTabs() {
+  els.documentTabs.innerHTML = "";
+  if (!state.documents.length) {
+    els.documentTabs.hidden = true;
+    return;
+  }
+
+  els.documentTabs.hidden = false;
+  const fragment = document.createDocumentFragment();
+  for (const documentState of state.documents) {
+    const tab = document.createElement("button");
+    tab.className = `document-tab${documentState.id === state.activeDocumentId ? " is-active" : ""}`;
+    tab.type = "button";
+    tab.dataset.documentId = String(documentState.id);
+    tab.title = documentState.fileName;
+
+    const label = document.createElement("span");
+    label.className = "document-tab-label";
+    label.textContent = documentState.fileName;
+
+    const close = document.createElement("span");
+    close.className = "document-tab-close";
+    close.dataset.closeDocument = String(documentState.id);
+    close.setAttribute("aria-hidden", "true");
+    close.title = "Tab schließen";
+    close.textContent = "×";
+
+    tab.append(label, close);
+    fragment.append(tab);
+  }
+  els.documentTabs.append(fragment);
 }
 
 function renderFacts(parsed) {
@@ -1330,18 +1368,29 @@ async function copyCurrentMeasurementTable() {
   }, 1200);
 }
 
-async function handleFile(file) {
-  if (!file) return;
-  state.fileName = `${file.name} wird geladen...`;
-  state.parsed = null;
-  resetVisibleRows();
-  render();
-  await nextFrame();
-  const text = await readEdifactFile(file);
-  state.fileName = file.name;
-  state.parsed = parseEdifact(text);
-  resetVisibleRows();
-  render();
+async function handleFiles(fileList) {
+  const files = [...(fileList || [])];
+  if (!files.length) return;
+  saveActiveDocumentState();
+
+  for (const file of files) {
+    state.fileName = `${file.name} wird geladen...`;
+    state.parsed = null;
+    applyDocumentView(defaultDocumentView());
+    render();
+    await nextFrame();
+
+    const text = await readEdifactFile(file);
+    const documentState = {
+      id: state.nextDocumentId,
+      fileName: file.name,
+      parsed: parseEdifact(text),
+      view: defaultDocumentView(),
+    };
+    state.nextDocumentId += 1;
+    state.documents.push(documentState);
+    activateDocument(documentState.id, false);
+  }
 }
 
 async function readEdifactFile(file) {
@@ -1354,16 +1403,111 @@ async function readEdifactFile(file) {
 }
 
 function resetVisibleRows() {
+  applyDocumentView(defaultDocumentView());
+}
+
+function defaultDocumentView() {
+  return {
+    segmentFilter: "",
+    businessFilter: "",
+    businessDetailFilter: "",
+    chartMode: "quantities",
+    measurementView: "series",
+    selectedMeteringPoint: "",
+    selectedObis: "",
+    selectedSeriesKey: "",
+    selectedPointIndex: null,
+    selectedSeriesKeys: [],
+    visibleMeasurementRows: INITIAL_VISIBLE_ROWS,
+    visiblePointRows: INITIAL_VISIBLE_ROWS,
+    visibleBusinessRows: INITIAL_VISIBLE_ROWS,
+    visibleSegmentRows: INITIAL_VISIBLE_ROWS,
+  };
+}
+
+function currentDocumentView() {
+  return {
+    segmentFilter: state.segmentFilter,
+    businessFilter: state.businessFilter,
+    businessDetailFilter: state.businessDetailFilter,
+    chartMode: state.chartMode,
+    measurementView: state.measurementView,
+    selectedMeteringPoint: state.selectedMeteringPoint,
+    selectedObis: state.selectedObis,
+    selectedSeriesKey: state.selectedSeriesKey,
+    selectedPointIndex: state.selectedPointIndex,
+    selectedSeriesKeys: [...state.selectedSeriesKeys],
+    visibleMeasurementRows: state.visibleMeasurementRows,
+    visiblePointRows: state.visiblePointRows,
+    visibleBusinessRows: state.visibleBusinessRows,
+    visibleSegmentRows: state.visibleSegmentRows,
+  };
+}
+
+function applyDocumentView(view) {
   state.selectedSeriesKey = "";
   state.selectedPointIndex = null;
   state.selectedMeteringPoint = "";
   state.selectedObis = "";
   state.selectedSeriesKeys = new Set();
-  state.measurementView = "series";
-  state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
-  state.visiblePointRows = INITIAL_VISIBLE_ROWS;
-  state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
-  state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
+  Object.assign(state, {
+    segmentFilter: view.segmentFilter || "",
+    businessFilter: view.businessFilter || "",
+    businessDetailFilter: view.businessDetailFilter || "",
+    chartMode: view.chartMode || "quantities",
+    measurementView: view.measurementView || "series",
+    selectedMeteringPoint: view.selectedMeteringPoint || "",
+    selectedObis: view.selectedObis || "",
+    selectedSeriesKey: view.selectedSeriesKey || "",
+    selectedPointIndex: Number.isInteger(view.selectedPointIndex) ? view.selectedPointIndex : null,
+    selectedSeriesKeys: new Set(view.selectedSeriesKeys || []),
+    visibleMeasurementRows: view.visibleMeasurementRows || INITIAL_VISIBLE_ROWS,
+    visiblePointRows: view.visiblePointRows || INITIAL_VISIBLE_ROWS,
+    visibleBusinessRows: view.visibleBusinessRows || INITIAL_VISIBLE_ROWS,
+    visibleSegmentRows: view.visibleSegmentRows || INITIAL_VISIBLE_ROWS,
+  });
+  els.segmentFilter.value = state.segmentFilter;
+  els.businessFilter.value = state.businessFilter;
+  els.businessDetailFilter.value = state.businessDetailFilter;
+}
+
+function saveActiveDocumentState() {
+  const documentState = state.documents.find((item) => item.id === state.activeDocumentId);
+  if (!documentState) return;
+  documentState.view = currentDocumentView();
+}
+
+function activateDocument(documentId, saveCurrent = true) {
+  if (saveCurrent) saveActiveDocumentState();
+  const documentState = state.documents.find((item) => item.id === documentId);
+  if (!documentState) return;
+  state.activeDocumentId = documentState.id;
+  state.fileName = documentState.fileName;
+  state.parsed = documentState.parsed;
+  applyDocumentView(documentState.view);
+  render();
+}
+
+function closeDocument(documentId) {
+  const index = state.documents.findIndex((item) => item.id === documentId);
+  if (index < 0) return;
+  state.documents.splice(index, 1);
+  if (state.activeDocumentId !== documentId) {
+    renderDocumentTabs();
+    return;
+  }
+
+  const nextDocument = state.documents[index] || state.documents[index - 1];
+  if (nextDocument) {
+    state.activeDocumentId = null;
+    activateDocument(nextDocument.id, false);
+  } else {
+    state.activeDocumentId = null;
+    state.fileName = "";
+    state.parsed = null;
+    applyDocumentView(defaultDocumentView());
+    render();
+  }
 }
 
 function nextFrame() {
@@ -1403,7 +1547,10 @@ function showMeteringPoint(meteringPoint) {
 }
 
 function wireEvents() {
-  els.fileInputSecondary.addEventListener("change", (event) => handleFile(event.target.files[0]));
+  els.fileInputSecondary.addEventListener("change", (event) => {
+    handleFiles(event.target.files);
+    event.target.value = "";
+  });
   els.segmentFilter.addEventListener("input", (event) => {
     state.segmentFilter = event.target.value;
     state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
@@ -1475,7 +1622,20 @@ function wireEvents() {
   }
 
   els.dropZone.addEventListener("drop", (event) => {
-    handleFile(event.dataTransfer.files[0]);
+    handleFiles(event.dataTransfer.files);
+  });
+
+  els.documentTabs.addEventListener("click", (event) => {
+    const closeButton = event.target.closest("[data-close-document]");
+    if (closeButton) {
+      event.stopPropagation();
+      closeDocument(Number(closeButton.dataset.closeDocument));
+      return;
+    }
+
+    const tab = event.target.closest("[data-document-id]");
+    if (!tab) return;
+    activateDocument(Number(tab.dataset.documentId));
   });
 
   els.businessMore.addEventListener("click", () => {

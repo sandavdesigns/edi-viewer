@@ -146,7 +146,7 @@ h2 {
 
 .workspace {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
   height: calc(100vh - 64px);
   width: min(1880px, 100%);
@@ -182,6 +182,57 @@ h2 {
   display: block;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.document-tabs {
+  display: flex;
+  gap: 6px;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.document-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 320px;
+  min-height: 34px;
+  padding: 0 9px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.document-tab.is-active {
+  border-color: var(--accent);
+  background: #e9f6f7;
+  color: var(--ink);
+}
+
+.document-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-tab-close {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.document-tab-close:hover {
+  background: rgba(8, 127, 140, 0.12);
+  color: var(--ink);
 }
 
 .viewer-shell {

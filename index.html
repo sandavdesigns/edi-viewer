@@ -25,10 +25,12 @@
           <span>EDIFACT/EDI, UTILMD, MSCONS, INVOIC, REMADV, APERAK, CONTRL und weitere deutsche Energiemarkt-Nachrichten.</span>
         </div>
         <label class="primary-button">
-          Datei wählen
-          <input id="fileInputSecondary" type="file" accept=".edi,.edifact,.txt,.unb,.dat" hidden />
+          Dateien wählen
+          <input id="fileInputSecondary" type="file" accept=".edi,.edifact,.txt,.unb,.dat" multiple hidden />
         </label>
       </section>
+
+      <section id="documentTabs" class="document-tabs" aria-label="Geöffnete Dateien"></section>
 
       <section class="viewer-shell">
         <aside class="left-pane">
