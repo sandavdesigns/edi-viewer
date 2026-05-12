@@ -7,7 +7,9 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
+  leftTab: "structure",
   selectedSeriesKey: "",
+  selectedSeriesKeys: new Set(),
   visibleMeasurementRows: 500,
   visibleBusinessRows: 500,
   visibleSegmentRows: 500,
@@ -188,7 +190,7 @@ function parseEdifact(rawText) {
   }
   const validation = validateInterchange(segments);
 
-  return { chars, segments, businessRows, measurementRows, measurementSeries, facts, validation };
+  return { chars, rawText: text, segments, businessRows, measurementRows, measurementSeries, facts, validation };
 }
 
 function detectServiceChars(text) {
@@ -353,6 +355,7 @@ function extractMeasurementRows(segments, facts) {
     obis: "",
     start: "",
     end: "",
+    status: "",
     thirdParty: "",
   };
   let pending = null;
@@ -383,6 +386,11 @@ function extractMeasurementRows(segments, facts) {
       const qualifier = segment.elements[0]?.[0] || "";
       const value = segment.elements[0]?.[1] || "";
       if (["Z13", "Z14", "MG"].includes(qualifier) && value && !context.meteringPoint) context.meteringPoint = value;
+    }
+
+    if (segment.tag === "STS") {
+      context.status = segment.elements.flat().filter(Boolean).join(":");
+      if (pending) pending.status = context.status;
     }
 
     if (segment.tag === "DTM") {
@@ -429,6 +437,7 @@ function extractMeasurementRows(segments, facts) {
       sender: facts.sender || "-",
       receiver: facts.receiver || "-",
       thirdParty: context.thirdParty || "",
+      status: context.status || "",
       segment: `${segment.index} ${segment.tag}`,
     };
   }
@@ -578,6 +587,7 @@ function renderFacts(parsed) {
 
 function renderTree(parsed) {
   els.treeView.innerHTML = "";
+  updateLeftTabs();
   if (!parsed) {
     const empty = document.createElement("div");
     empty.className = "tree-node";
@@ -587,9 +597,33 @@ function renderTree(parsed) {
     return;
   }
 
+  if (state.leftTab === "text") {
+    const text = document.createElement("pre");
+    text.className = "edi-text-view";
+    text.textContent = parsed.rawText.replace(/'/g, "'\n");
+    els.treeView.append(text);
+    return;
+  }
+
   const fragment = document.createDocumentFragment();
   const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", true);
   fragment.append(root);
+
+  if (state.leftTab === "structure") {
+    const messages = parsed.segments.filter((segment) => segment.tag === "UNH");
+    if (messages.length) {
+      for (const message of messages.slice(0, 300)) {
+        const type = message.elements[1]?.[0] || "Nachricht";
+        fragment.append(treeNode(1, "▸", `${message.index} ${type} - ${describeMessageType(type)}`, false));
+      }
+    } else {
+      for (const segment of parsed.segments.slice(0, 500)) {
+        fragment.append(treeNode(1, "•", `${segment.index} ${segment.tag} - ${segment.label}`, false));
+      }
+    }
+    els.treeView.append(fragment);
+    return;
+  }
 
   const groups = groupMeasurements(parsed.measurementSeries);
   for (const [meteringPoint, rows] of groups) {
@@ -606,6 +640,12 @@ function renderTree(parsed) {
   }
 
   els.treeView.append(fragment);
+}
+
+function updateLeftTabs() {
+  document.querySelectorAll("[data-left-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.leftTab === state.leftTab);
+  });
 }
 
 function treeNode(level, icon, label, selected) {
@@ -682,7 +722,7 @@ function renderMeasurementTable(parsed) {
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
-  if (!rows.length) return appendEmpty(els.measurementTable, 12);
+  if (!rows.length) return appendEmpty(els.measurementTable, 13);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
   if (!selectedExists && visibleRows[0]) state.selectedSeriesKey = visibleRows[0].key;
@@ -692,6 +732,15 @@ function renderMeasurementTable(parsed) {
     const tr = document.createElement("tr");
     tr.dataset.key = row.key;
     if (row.key === state.selectedSeriesKey) tr.className = "is-selected";
+    const selectCell = document.createElement("td");
+    selectCell.className = "select-col";
+    const checkbox = document.createElement("input");
+    checkbox.className = "row-check";
+    checkbox.type = "checkbox";
+    checkbox.checked = state.selectedSeriesKeys.has(row.key);
+    checkbox.setAttribute("aria-label", `${row.meteringPoint} ${row.obis} exportieren`);
+    selectCell.append(checkbox);
+    tr.append(selectCell);
     appendCell(tr, row.meteringPoint);
     appendCell(tr, row.obis, "mono");
     appendCell(tr, row.from);
@@ -1013,6 +1062,39 @@ function toCsv(rows, columns) {
   ].join("\n");
 }
 
+function selectedLoadProfileRows(parsed) {
+  if (!parsed) return [];
+  const selectedKeys = state.selectedSeriesKeys.size ? [...state.selectedSeriesKeys] : [state.selectedSeriesKey].filter(Boolean);
+  const series = selectedKeys.length
+    ? parsed.measurementSeries.filter((row) => selectedKeys.includes(row.key))
+    : getFilteredMeasurementRows(parsed);
+
+  return series.flatMap((row) =>
+    row.points.map((point) => ({
+      meteringPoint: row.meteringPoint,
+      obis: row.obis,
+      from: point.from,
+      to: point.to,
+      value: point.quantity,
+      status: point.status || "",
+    })),
+  );
+}
+
+function exportSelectedLoadProfiles(suffix) {
+  if (!state.parsed) return;
+  const rows = selectedLoadProfileRows(state.parsed);
+  const csv = toCsv(rows, [
+    { label: "Zaehlpunkt", value: (row) => row.meteringPoint },
+    { label: "OBIS", value: (row) => row.obis },
+    { label: "von", value: (row) => row.from },
+    { label: "bis", value: (row) => row.to },
+    { label: "wert", value: (row) => row.value },
+    { label: "status", value: (row) => row.status },
+  ]);
+  download(`${baseName(state.fileName)}-${suffix}.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
+}
+
 async function handleFile(file) {
   if (!file) return;
   state.fileName = `${file.name} wird geladen...`;
@@ -1038,6 +1120,7 @@ async function readEdifactFile(file) {
 
 function resetVisibleRows() {
   state.selectedSeriesKey = "";
+  state.selectedSeriesKeys = new Set();
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
   state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
   state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
@@ -1067,9 +1150,16 @@ function wireEvents() {
     state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
     renderBusinessTable(state.parsed);
   });
-  els.chartMode.addEventListener("change", (event) => {
+  els.chartMode?.addEventListener("change", (event) => {
     state.chartMode = event.target.value;
     renderChart(state.parsed);
+  });
+
+  document.querySelectorAll("[data-left-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.leftTab = button.dataset.leftTab || "structure";
+      renderTree(state.parsed);
+    });
   });
 
   for (const eventName of ["dragenter", "dragover"]) {
@@ -1104,6 +1194,14 @@ function wireEvents() {
   els.measurementTable.addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-key]");
     if (!row) return;
+    if (event.target.classList.contains("row-check")) {
+      if (event.target.checked) {
+        state.selectedSeriesKeys.add(row.dataset.key);
+      } else {
+        state.selectedSeriesKeys.delete(row.dataset.key);
+      }
+      return;
+    }
     state.selectedSeriesKey = row.dataset.key || "";
     renderMeasurementTable(state.parsed);
     renderTree(state.parsed);
@@ -1116,27 +1214,11 @@ function wireEvents() {
   });
 
   els.exportSegments.addEventListener("click", () => {
-    if (!state.parsed) return;
-    const csv = toCsv(state.parsed.segments, [
-      { label: "#", value: (row) => row.index },
-      { label: "Tag", value: (row) => row.tag },
-      { label: "Beschreibung", value: (row) => row.label },
-      { label: "Elemente", value: (row) => row.elements.map((parts) => parts.join(":")).join(" + ") },
-      { label: "Rohsegment", value: (row) => row.raw },
-    ]);
-    download(`${baseName(state.fileName)}-segmente.csv`, "text/csv;charset=utf-8", csv);
+    exportSelectedLoadProfiles("lastgang");
   });
 
   els.exportBusiness.addEventListener("click", () => {
-    if (!state.parsed) return;
-    const csv = toCsv(state.parsed.businessRows, [
-      { label: "Typ", value: (row) => row.type },
-      { label: "Qualifier", value: (row) => row.qualifier },
-      { label: "Wert", value: (row) => row.value },
-      { label: "Zusatz", value: (row) => row.extra },
-      { label: "Segment", value: (row) => row.segment },
-    ]);
-    download(`${baseName(state.fileName)}-daten.csv`, "text/csv;charset=utf-8", csv);
+    exportSelectedLoadProfiles("lastgang-daten");
   });
 
   els.exportJson.addEventListener("click", () => {

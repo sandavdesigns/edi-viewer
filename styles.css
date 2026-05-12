@@ -356,6 +356,17 @@ h2 {
   white-space: nowrap;
 }
 
+.edi-text-view {
+  margin: 0;
+  padding: 10px;
+  color: #22302a;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .table-wrap {
   overflow: auto;
   max-height: 430px;
@@ -383,6 +394,21 @@ td {
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
+}
+
+.select-col {
+  width: 76px;
+  text-align: center;
+}
+
+td.select-col {
+  vertical-align: middle;
+}
+
+.row-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 th {

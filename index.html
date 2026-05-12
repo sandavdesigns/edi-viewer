@@ -17,8 +17,8 @@
           <span aria-hidden="true">↥</span>
           <input id="fileInput" type="file" accept=".edi,.edifact,.txt,.unb,.dat" hidden />
         </label>
-        <button id="exportSegments" class="icon-button" type="button" title="Segmenttabelle als CSV exportieren">CSV</button>
-        <button id="exportBusiness" class="icon-button" type="button" title="Geschäftsdaten als CSV exportieren">DAT</button>
+        <button id="exportSegments" class="icon-button" type="button" title="Ausgewählte Lastgänge als CSV exportieren">CSV</button>
+        <button id="exportBusiness" class="icon-button" type="button" title="Ausgewählte Lastgänge als CSV exportieren">DAT</button>
         <button id="exportJson" class="icon-button" type="button" title="Analyse als JSON exportieren">JS</button>
       </div>
     </header>
@@ -38,9 +38,9 @@
       <section class="viewer-shell">
         <aside class="left-pane">
           <div class="tab-strip">
-            <button class="tab is-active" type="button">EDI Struktur</button>
-            <button class="tab" type="button">EDI Text</button>
-            <button class="tab" type="button">MSCONS</button>
+            <button class="tab is-active" type="button" data-left-tab="structure">EDI Struktur</button>
+            <button class="tab" type="button" data-left-tab="text">EDI Text</button>
+            <button class="tab" type="button" data-left-tab="mscons">MSCONS</button>
           </div>
 
           <section class="panel properties-panel" aria-live="polite">
@@ -73,6 +73,7 @@
               <table>
                 <thead>
                   <tr>
+                    <th class="select-col">Auswahl</th>
                     <th>Zählpunkt</th>
                     <th>OBIS</th>
                     <th>von</th>
@@ -99,10 +100,6 @@
           <section class="panel graph-panel">
             <div class="panel-heading">
               <h2 id="graphTitle">Lastgang / Mengenverlauf</h2>
-              <select id="chartMode" aria-label="Grafikmodus">
-                <option value="quantities">Mengenverlauf</option>
-                <option value="segments">Segmentverteilung</option>
-              </select>
             </div>
             <div class="chart-wrap large">
               <svg id="chart" role="img" aria-label="EDIFACT-Grafik"></svg>
