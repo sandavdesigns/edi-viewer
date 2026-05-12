@@ -158,6 +158,9 @@ const els = {
   infoOpen: document.querySelector("#infoOpen"),
   infoClose: document.querySelector("#infoClose"),
   infoDialog: document.querySelector("#infoDialog"),
+  manualOpen: document.querySelector("#manualOpen"),
+  manualClose: document.querySelector("#manualClose"),
+  manualDialog: document.querySelector("#manualDialog"),
   measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
@@ -1984,6 +1987,18 @@ function wireEvents() {
 
   els.validationDialog.addEventListener("click", (event) => {
     if (event.target === els.validationDialog) closeDialog(els.validationDialog);
+  });
+
+  els.manualOpen.addEventListener("click", () => {
+    openDialog(els.manualDialog);
+  });
+
+  els.manualClose.addEventListener("click", () => {
+    closeDialog(els.manualDialog);
+  });
+
+  els.manualDialog.addEventListener("click", (event) => {
+    if (event.target === els.manualDialog) closeDialog(els.manualDialog);
   });
 
   els.treeToggle.addEventListener("click", () => {

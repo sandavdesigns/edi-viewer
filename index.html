@@ -19,6 +19,7 @@
           <option value="dark">Dunkel</option>
         </select>
         <button id="infoOpen" class="secondary-button" type="button">MSCONS Info</button>
+        <button id="manualOpen" class="secondary-button" type="button">Handbuch</button>
         <button id="exportSegments" class="icon-button" type="button" title="Ausgewählte Lastgänge als CSV exportieren">CSV</button>
       </div>
     </header>
@@ -191,6 +192,59 @@
           <button id="validationClose" class="icon-button" type="button" aria-label="Prüfbericht schließen">×</button>
         </div>
         <div id="validationList" class="validation-list"></div>
+      </div>
+    </dialog>
+
+    <dialog id="manualDialog" class="info-dialog manual-dialog">
+      <div class="modal-panel">
+        <div class="modal-heading">
+          <div>
+            <h2>Benutzerhandbuch</h2>
+            <span>EDI Viewer für MSCONS und EDIFACT-Dateien</span>
+          </div>
+          <button id="manualClose" class="icon-button" type="button" aria-label="Handbuch schließen">×</button>
+        </div>
+        <article class="manual-content">
+          <section>
+            <h3>Dateien öffnen</h3>
+            <p>Dateien können über <strong>Dateien wählen</strong> oder per Drag-and-drop geladen werden. Mehrere Dateien werden als Tabs geöffnet. Jeder Tab merkt sich Filter, Auswahl, Grafik und Einzelwertansicht.</p>
+          </section>
+          <section>
+            <h3>Übersicht und Baum</h3>
+            <p>Links steht der MSCONS-Baum. Ein Klick auf einen Zählpunkt filtert rechts auf alle OBIS-Codes dieses Zählpunkts. Ein Klick auf eine OBIS-Zeitreihe öffnet die Einzelwerte. Ein Klick auf den Dateinamen im Baum springt zurück zur Standardübersicht.</p>
+          </section>
+          <section>
+            <h3>Filter</h3>
+            <p>Oben in der Tabelle gibt es Filter für Zählpunkt, OBIS, Zeitraum von/bis und Freitext. Der Zeitraum wirkt auf Tabelle, Einzelwerte, Grafik, Export, Kopieren und Kennzahlen.</p>
+          </section>
+          <section>
+            <h3>Grafik und Kennzahlen</h3>
+            <p>Die Grafik zeigt die ausgewählte Zeitreihe. In der Einzelwertansicht markiert ein Klick auf einen Wert dessen Position in der Grafik. Die Kennzahlenleiste zeigt Werteanzahl, Summe, Min/Max, Durchschnitt, Lücken, Ausreißer, Status und Vergleich.</p>
+          </section>
+          <section>
+            <h3>Vergleich</h3>
+            <ol>
+              <li>Mindestens zwei Dateien laden, damit oben mehrere Tabs sichtbar sind.</li>
+              <li>Den Tab öffnen, der als aktive Hauptdatei dienen soll.</li>
+              <li>In der Grafik rechts im Dropdown <strong>Mit Datei vergleichen</strong> eine zweite Datei wählen.</li>
+              <li>Eine Zeitreihe auswählen. Verglichen wird dieselbe Kombination aus Zählpunkt und OBIS-Code.</li>
+              <li>Die Vergleichsdatei erscheint als gestrichelte Linie. Die Kennzahl <strong>Vergleich</strong> zeigt geänderte, fehlende und neue Werte.</li>
+            </ol>
+            <p>Wenn dort „nicht gefunden“ steht, gibt es in der Vergleichsdatei keine Zeitreihe mit derselben Zählpunkt/OBIS-Kombination.</p>
+          </section>
+          <section>
+            <h3>Prüfung</h3>
+            <p>Der Button <strong>Prüfung</strong> erstellt einen Prüfbericht. Er prüft EDIFACT-Struktur, doppelte Zeitpunkte, Lücken im Zeitraster und auffällige Ausreißer. Bei großen Dateien öffnet das Fenster sofort und berechnet den Bericht anschließend.</p>
+          </section>
+          <section>
+            <h3>Export und Kopieren</h3>
+            <p><strong>CSV</strong> exportiert ausgewählte Lastgänge. Wenn nichts ausgewählt ist, werden alle aktuell gefilterten Lastgänge exportiert. Der Kopf-Haken wählt alle gefilterten Lastgänge aus, auch wenn nicht alle in der Tabelle geladen sind. <strong>Kopieren</strong> kopiert die gerade angezeigte Tabelle als Excel-kompatible Spalten in die Zwischenablage.</p>
+          </section>
+          <section>
+            <h3>Darstellung</h3>
+            <p>Der Modus <strong>Auto</strong> folgt dem Systemdesign. Alternativ können <strong>Hell</strong> oder <strong>Dunkel</strong> fest gewählt werden. Die Auswahl bleibt im Browser gespeichert.</p>
+          </section>
+        </article>
       </div>
     </dialog>
 

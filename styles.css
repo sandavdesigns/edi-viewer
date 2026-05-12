@@ -611,6 +611,10 @@ td.num {
   width: min(980px, calc(100vw - 32px));
 }
 
+.manual-dialog {
+  width: min(940px, calc(100vw - 32px));
+}
+
 .info-dialog::backdrop {
   background: var(--modal-backdrop);
   backdrop-filter: blur(3px);
@@ -658,6 +662,39 @@ td.num {
   max-height: min(640px, calc(100vh - 150px));
   overflow: auto;
   padding: 8px 12px 14px;
+}
+
+.manual-content {
+  max-height: min(700px, calc(100vh - 150px));
+  overflow: auto;
+  padding: 8px 18px 18px;
+  color: var(--text-table);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.manual-content section {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.manual-content h3 {
+  margin: 0 0 6px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.manual-content p,
+.manual-content ol {
+  margin: 0;
+}
+
+.manual-content ol {
+  padding-left: 22px;
+}
+
+.manual-content li + li {
+  margin-top: 4px;
 }
 
 .validation-item {
