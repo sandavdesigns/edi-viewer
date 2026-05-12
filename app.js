@@ -1017,8 +1017,8 @@ function getFilteredMeasurementRows(parsed) {
 }
 
 function getFilteredSeriesPoints(series) {
-  const start = parseDateInput(state.dateFrom);
-  const end = parseDateInput(state.dateTo);
+  const start = parseDateInput(state.dateFrom, "start");
+  const end = parseDateInput(state.dateTo, "end");
   return filterPointsByRange(series?.points || [], start, end);
 }
 
@@ -1181,7 +1181,7 @@ function drawMeasurementChart(svg, rows) {
 
   const compareSeries = getCompareSeries(selectedSeries);
   if (compareSeries) {
-    const comparePoints = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom), parseDateInput(state.dateTo));
+    const comparePoints = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom, "start"), parseDateInput(state.dateTo, "end"));
     const compareValues = comparePoints.map((point) => Number(point.quantity)).filter((value) => Number.isFinite(value));
     if (compareValues.length) {
       const comparePath = buildStepPath(compareValues.map((value, index) => {
@@ -1330,10 +1330,24 @@ function formatDateTime(value) {
   return `${day}.${month}.${year} ${hour}:${minute}`;
 }
 
-function parseDateInput(value) {
+function parseDateInput(value, boundary = "start") {
   if (!value) return null;
-  const time = Date.parse(value);
-  return Number.isFinite(time) ? time : parseDateValue(value);
+  const dateOnly = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    const date = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]), 0, 0, 0, 0);
+    if (boundary === "end") date.setHours(23, 59, 59, 999);
+    return date.getTime();
+  }
+  const time = parseDateValue(value);
+  if (!time) return null;
+  if (boundary === "end") {
+    const date = new Date(time);
+    date.setHours(23, 59, 59, 999);
+    return date.getTime();
+  }
+  const date = new Date(time);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
 }
 
 function parseDateValue(value) {
@@ -1411,7 +1425,7 @@ function compareSummary(series) {
   const compareSeries = getCompareSeries(series);
   if (!compareSeries) return state.compareDocumentId ? "nicht gefunden" : "-";
   const current = getFilteredSeriesPoints(series);
-  const other = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom), parseDateInput(state.dateTo));
+  const other = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom, "start"), parseDateInput(state.dateTo, "end"));
   const currentMap = new Map(current.map((point) => [`${point.from || ""}||${point.to || ""}`, Number(point.quantity) || 0]));
   let changed = 0;
   let missing = 0;
