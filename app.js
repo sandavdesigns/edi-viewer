@@ -141,6 +141,7 @@ const els = {
   infoOpen: document.querySelector("#infoOpen"),
   infoClose: document.querySelector("#infoClose"),
   infoDialog: document.querySelector("#infoDialog"),
+  measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
@@ -747,6 +748,7 @@ function renderMeasurementTable(parsed) {
   updateMeasurementHeader(["✓", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger"]);
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
+  renderSelectAllHeader(visibleRows);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
@@ -821,6 +823,22 @@ function updateMeasurementHeader(labels) {
   headers.forEach((header, index) => {
     header.textContent = labels[index] || "";
   });
+}
+
+function renderSelectAllHeader(visibleRows) {
+  const header = document.querySelector(".measurement-panel thead th.select-col");
+  if (!header) return;
+  header.innerHTML = "";
+  const checkbox = document.createElement("input");
+  checkbox.id = "seriesSelectAll";
+  checkbox.className = "row-check select-all-check";
+  checkbox.type = "checkbox";
+  checkbox.disabled = !visibleRows.length;
+  checkbox.checked = visibleRows.length > 0 && visibleRows.every((row) => state.selectedSeriesKeys.has(row.key));
+  checkbox.indeterminate = visibleRows.some((row) => state.selectedSeriesKeys.has(row.key)) && !checkbox.checked;
+  checkbox.setAttribute("aria-label", "Alle sichtbaren Lastgänge exportieren");
+  checkbox.title = "Alle sichtbaren Lastgänge auswählen";
+  header.append(checkbox);
 }
 
 function renderSegmentsTable(parsed) {
@@ -1182,10 +1200,10 @@ function exportSelectedLoadProfiles(suffix) {
   ];
   for (const row of series) {
     const label = `${row.meteringPoint} | ${row.obis}`;
-    columns.push(
-      { label: `${label} wert`, value: (exportRow) => exportRow[`${row.key}__value`] ?? "" },
-      { label: `${label} status`, value: (exportRow) => exportRow[`${row.key}__status`] ?? "" },
-    );
+    columns.push({ label: `${label} wert`, value: (exportRow) => exportRow[`${row.key}__value`] ?? "" });
+    if (series.length === 1) {
+      columns.push({ label: `${label} status`, value: (exportRow) => exportRow[`${row.key}__status`] ?? "" });
+    }
   }
   const csv = toCsv(rows, columns);
   download(`${baseName(state.fileName)}-${suffix}.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
@@ -1338,6 +1356,19 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
+  els.measurementHead.addEventListener("change", (event) => {
+    if (event.target.id !== "seriesSelectAll") return;
+    const visibleRows = getFilteredMeasurementRows(state.parsed).slice(0, state.visibleMeasurementRows);
+    for (const row of visibleRows) {
+      if (event.target.checked) {
+        state.selectedSeriesKeys.add(row.key);
+      } else {
+        state.selectedSeriesKeys.delete(row.key);
+      }
+    }
+    renderMeasurementTable(state.parsed);
+  });
+
   els.treeView.addEventListener("click", (event) => {
     const root = event.target.closest("[data-root-node]");
     if (root) {
@@ -1379,6 +1410,7 @@ function wireEvents() {
       } else {
         state.selectedSeriesKeys.delete(row.dataset.key);
       }
+      renderSelectAllHeader(getFilteredMeasurementRows(state.parsed).slice(0, state.visibleMeasurementRows));
       return;
     }
     const meteringCell = event.target.closest(".metering-point-cell");
