@@ -153,7 +153,6 @@ const els = {
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
   treeView: document.querySelector("#treeView"),
   treeToggle: document.querySelector("#treeToggle"),
-  treeSegmentCount: document.querySelector("#treeSegmentCount"),
   infoOpen: document.querySelector("#infoOpen"),
   infoClose: document.querySelector("#infoClose"),
   infoDialog: document.querySelector("#infoDialog"),
@@ -594,7 +593,6 @@ function render() {
   els.fileName.textContent = parsed ? formatDocumentSubtitle(parsed) : "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
   els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
-  els.treeSegmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
   els.validationState.textContent = parsed ? parsed.validation.message : "Bereit";
   els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
@@ -736,7 +734,7 @@ function renderTree(parsed) {
   for (const [meteringPoint, rows] of groups) {
     fragment.append(treeNode(1, "▾", meteringPoint, state.selectedMeteringPoint === meteringPoint && state.measurementView === "series", { meteringPoint }));
     for (const row of rows) {
-      fragment.append(treeNode(2, "▸", `${row.obis} - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key && state.measurementView === "points", { seriesKey: row.key }));
+      fragment.append(treeNode(2, "•", `${row.obis} - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key && state.measurementView === "points", { seriesKey: row.key }));
     }
   }
 
