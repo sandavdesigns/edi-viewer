@@ -737,22 +737,22 @@ td.num {
   grid-template-columns: 1fr;
   align-content: start;
   gap: 1px;
-  min-width: 160px;
+  min-width: 136px;
   border-left: 1px solid var(--line);
   background: var(--line);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .insight-card {
   min-width: 0;
-  padding: 7px 9px;
+  padding: 5px 7px;
   background: var(--surface);
 }
 
 .insight-card span {
   display: block;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 820;
   text-transform: uppercase;
 }
@@ -760,9 +760,9 @@ td.num {
 .insight-card strong {
   display: block;
   overflow: hidden;
-  margin-top: 2px;
+  margin-top: 1px;
   color: var(--ink);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -867,7 +867,7 @@ body.is-tree-collapsed .tree-toggle::before {
 
 .graph-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 176px;
+  grid-template-columns: minmax(0, 1fr) 146px;
   min-height: 0;
 }
 
