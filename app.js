@@ -734,7 +734,7 @@ function renderTree(parsed) {
 
   const groups = groupMeasurements(parsed.measurementSeries);
   for (const [meteringPoint, rows] of groups) {
-    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} OBIS`, state.selectedMeteringPoint === meteringPoint && state.measurementView === "series", { meteringPoint }));
+    fragment.append(treeNode(1, "▾", meteringPoint, state.selectedMeteringPoint === meteringPoint && state.measurementView === "series", { meteringPoint }));
     for (const row of rows) {
       fragment.append(treeNode(2, "▸", `${row.obis} - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key && state.measurementView === "points", { seriesKey: row.key }));
     }
