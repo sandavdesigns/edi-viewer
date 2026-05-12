@@ -613,9 +613,9 @@ td.num {
 
 .measurement-footer {
   display: grid;
-  grid-template-columns: 34px minmax(250px, 1fr) 104px 116px 116px minmax(150px, 190px) 86px 116px 86px 116px 132px 132px;
+  grid-template-columns: 34px 250px 104px 116px 116px minmax(150px, 190px) minmax(0, 1fr) auto;
   align-items: center;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 #measurementCount {
@@ -633,7 +633,7 @@ td.num {
 }
 
 .measurement-footer #measurementMore {
-  grid-column: 11 / 13;
+  grid-column: 8 / 9;
   justify-self: end;
 }
 
