@@ -166,6 +166,7 @@ const els = {
   manualDialog: document.querySelector("#manualDialog"),
   measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
+  measurementSummary: document.querySelector("#measurementSummary"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
   copyMeasurement: document.querySelector("#copyMeasurement"),
@@ -1002,6 +1003,7 @@ function renderBusinessTable(parsed) {
 
 function renderMeasurementTable(parsed) {
   els.measurementTable.innerHTML = "";
+  renderMeasurementSummary([]);
   if (state.measurementView === "points") {
     renderMeasurementPointTable(parsed);
     return;
@@ -1013,6 +1015,7 @@ function renderMeasurementTable(parsed) {
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   renderSelectAllHeader(rows);
   updateMeasurementFooter(visibleRows.length, rows);
+  renderMeasurementSummary(rows);
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
@@ -1048,7 +1051,6 @@ function renderMeasurementTable(parsed) {
     appendCell(tr, row.receiver, "mono");
     fragment.append(tr);
   }
-  appendMeasurementSummaryRow(fragment, rows);
   els.measurementTable.append(fragment);
   updateGraphTitle(parsed);
 }
@@ -1142,18 +1144,18 @@ function appendCell(row, text, className = "") {
   return td;
 }
 
-function appendMeasurementSummaryRow(fragment, rows) {
-  if (!rows.length) return;
+function renderMeasurementSummary(rows) {
+  els.measurementSummary.innerHTML = "";
+  els.measurementSummary.hidden = !rows.length || state.measurementView !== "series";
+  if (els.measurementSummary.hidden) return;
   const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
-  const tr = document.createElement("tr");
-  tr.className = "summary-row";
-  appendCell(tr, "");
-  const label = appendCell(tr, "Summe gefiltert");
-  label.colSpan = 4;
-  appendCell(tr, formatNumber(sum), "num");
-  const rest = appendCell(tr, "");
-  rest.colSpan = 6;
-  fragment.append(tr);
+  const cells = ["", "Summe gefiltert", "", "", "", formatNumber(sum), "", "", "", "", "", ""];
+  for (const [index, value] of cells.entries()) {
+    const cell = document.createElement("span");
+    cell.textContent = value;
+    if (index === 5) cell.className = "num";
+    els.measurementSummary.append(cell);
+  }
 }
 
 function appendEmpty(target, colspan = 5) {

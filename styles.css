@@ -464,7 +464,7 @@ h2 {
 
 .measurement-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
 
 .measurement-panel .table-wrap {
@@ -527,13 +527,36 @@ tr.is-selected td {
   background: var(--select);
 }
 
-.summary-row td {
+.measurement-summary {
+  display: grid;
+  grid-template-columns: 34px 250px 104px 116px 116px 86px 86px 116px 86px 116px 132px 132px;
+  min-width: 1120px;
   border-top: 2px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   background: var(--surface-soft);
   color: var(--ink);
+  font-size: 0.76rem;
   font-weight: 860;
 }
 
+.measurement-summary[hidden] {
+  display: none;
+}
+
+.measurement-summary span {
+  overflow: hidden;
+  padding: 5px 6px;
+  border-right: 1px solid var(--line);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.measurement-summary .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Legacy class kept harmless for older cached DOM during refreshes. */
 td.mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.76rem;
