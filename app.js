@@ -6,7 +6,12 @@ const state = {
   segmentFilter: "",
   businessFilter: "",
   chartMode: "segments",
+  visibleBusinessRows: 500,
+  visibleSegmentRows: 500,
 };
+
+const INITIAL_VISIBLE_ROWS = 500;
+const ROW_LOAD_STEP = 500;
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -123,6 +128,10 @@ const els = {
   businessFilter: document.querySelector("#businessFilter"),
   segmentsTable: document.querySelector("#segmentsTable"),
   businessTable: document.querySelector("#businessTable"),
+  businessCount: document.querySelector("#businessCount"),
+  segmentsCount: document.querySelector("#segmentsCount"),
+  businessMore: document.querySelector("#businessMore"),
+  segmentsMore: document.querySelector("#segmentsMore"),
   exportSegments: document.querySelector("#exportSegments"),
   exportBusiness: document.querySelector("#exportBusiness"),
   exportJson: document.querySelector("#exportJson"),
@@ -150,7 +159,14 @@ function parseEdifact(rawText) {
     };
   });
 
+  for (const segment of segments) {
+    segment.searchText = [segment.index, segment.tag, segment.label, segment.raw].join(" ").toLowerCase();
+  }
+
   const businessRows = extractBusinessRows(segments);
+  for (const row of businessRows) {
+    row.searchText = [row.type, row.qualifier, row.value, row.extra, row.segment].join(" ").toLowerCase();
+  }
   const facts = extractFacts(segments, businessRows, chars);
   const validation = validateInterchange(segments);
 
@@ -316,19 +332,21 @@ function validateInterchange(segments) {
   const untSegments = segments.filter((segment) => segment.tag === "UNT");
   const unhSegments = segments.filter((segment) => segment.tag === "UNH");
   const unz = segments.find((segment) => segment.tag === "UNZ");
+  let activeUnh = null;
 
   if (!segments.some((segment) => segment.tag === "UNB")) issues.push("UNB fehlt");
   if (!unhSegments.length) issues.push("UNH fehlt");
   if (untSegments.length !== unhSegments.length) issues.push("UNH/UNT Anzahl passt nicht");
   if (!unz) issues.push("UNZ fehlt");
 
-  for (const unt of untSegments) {
-    const expected = Number(unt.elements[0]?.[0]);
-    if (!Number.isFinite(expected)) continue;
-    const previousUnh = [...segments].slice(0, unt.index).reverse().find((segment) => segment.tag === "UNH");
-    if (!previousUnh) continue;
-    const actual = unt.index - previousUnh.index + 1;
-    if (expected !== actual) issues.push(`UNT ${unt.index}: erwartet ${expected}, gefunden ${actual}`);
+  for (const segment of segments) {
+    if (segment.tag === "UNH") activeUnh = segment;
+    if (segment.tag !== "UNT") continue;
+    const expected = Number(segment.elements[0]?.[0]);
+    if (!Number.isFinite(expected) || !activeUnh) continue;
+    const actual = segment.index - activeUnh.index + 1;
+    if (expected !== actual) issues.push(`UNT ${segment.index}: erwartet ${expected}, gefunden ${actual}`);
+    activeUnh = null;
   }
 
   return {
@@ -409,26 +427,33 @@ function factNode(label, value) {
 
 function renderBusinessTable(parsed) {
   els.businessTable.innerHTML = "";
-  const rows = parsed?.businessRows.filter((row) => includesFilter(row, state.businessFilter)) || [];
+  const rows = getFilteredBusinessRows(parsed);
+  const visibleRows = rows.slice(0, state.visibleBusinessRows);
+  updateTableFooter(els.businessCount, els.businessMore, visibleRows.length, rows.length, "Zeilen");
   if (!rows.length) return appendEmpty(els.businessTable);
 
-  for (const row of rows) {
+  const fragment = document.createDocumentFragment();
+  for (const row of visibleRows) {
     const tr = document.createElement("tr");
     appendCell(tr, row.type);
     appendCell(tr, row.qualifier);
     appendCell(tr, row.value);
     appendCell(tr, row.extra);
     appendCell(tr, row.segment, "mono");
-    els.businessTable.append(tr);
+    fragment.append(tr);
   }
+  els.businessTable.append(fragment);
 }
 
 function renderSegmentsTable(parsed) {
   els.segmentsTable.innerHTML = "";
-  const rows = parsed?.segments.filter((segment) => includesFilter(segment, state.segmentFilter)) || [];
+  const rows = getFilteredSegments(parsed);
+  const visibleRows = rows.slice(0, state.visibleSegmentRows);
+  updateTableFooter(els.segmentsCount, els.segmentsMore, visibleRows.length, rows.length, "Segmente");
   if (!rows.length) return appendEmpty(els.segmentsTable);
 
-  for (const segment of rows) {
+  const fragment = document.createDocumentFragment();
+  for (const segment of visibleRows) {
     const tr = document.createElement("tr");
     appendCell(tr, String(segment.index), "mono");
     const tag = document.createElement("td");
@@ -440,8 +465,9 @@ function renderSegmentsTable(parsed) {
     appendCell(tr, segment.label);
     appendCell(tr, segment.elements.map((parts) => parts.join(":")).join(" + "), "mono");
     appendCell(tr, segment.raw, "mono");
-    els.segmentsTable.append(tr);
+    fragment.append(tr);
   }
+  els.segmentsTable.append(fragment);
 }
 
 function appendCell(row, text, className = "") {
@@ -455,9 +481,22 @@ function appendEmpty(target) {
   target.append(els.emptyRowTemplate.content.firstElementChild.cloneNode(true));
 }
 
+function updateTableFooter(countEl, moreButton, visible, total, label) {
+  countEl.textContent = total ? `${visible} von ${total} ${label}` : `0 ${label}`;
+  moreButton.hidden = visible >= total;
+}
+
+function getFilteredBusinessRows(parsed) {
+  return parsed?.businessRows.filter((row) => includesFilter(row, state.businessFilter)) || [];
+}
+
+function getFilteredSegments(parsed) {
+  return parsed?.segments.filter((segment) => includesFilter(segment, state.segmentFilter)) || [];
+}
+
 function includesFilter(value, filter) {
   if (!filter) return true;
-  return JSON.stringify(value).toLowerCase().includes(filter.toLowerCase());
+  return value.searchText.includes(filter.toLowerCase());
 }
 
 function renderChart(parsed) {
@@ -609,10 +648,25 @@ function toCsv(rows, columns) {
 
 async function handleFile(file) {
   if (!file) return;
+  state.fileName = `${file.name} wird geladen...`;
+  state.parsed = null;
+  resetVisibleRows();
+  render();
+  await nextFrame();
   const text = await file.text();
   state.fileName = file.name;
   state.parsed = parseEdifact(text);
+  resetVisibleRows();
   render();
+}
+
+function resetVisibleRows() {
+  state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
+  state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
 function wireEvents() {
@@ -620,10 +674,12 @@ function wireEvents() {
   els.fileInputSecondary.addEventListener("change", (event) => handleFile(event.target.files[0]));
   els.segmentFilter.addEventListener("input", (event) => {
     state.segmentFilter = event.target.value;
+    state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
     renderSegmentsTable(state.parsed);
   });
   els.businessFilter.addEventListener("input", (event) => {
     state.businessFilter = event.target.value;
+    state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
     renderBusinessTable(state.parsed);
   });
   els.chartMode.addEventListener("change", (event) => {
@@ -647,6 +703,16 @@ function wireEvents() {
 
   els.dropZone.addEventListener("drop", (event) => {
     handleFile(event.dataTransfer.files[0]);
+  });
+
+  els.businessMore.addEventListener("click", () => {
+    state.visibleBusinessRows += ROW_LOAD_STEP;
+    renderBusinessTable(state.parsed);
+  });
+
+  els.segmentsMore.addEventListener("click", () => {
+    state.visibleSegmentRows += ROW_LOAD_STEP;
+    renderSegmentsTable(state.parsed);
   });
 
   els.exportSegments.addEventListener("click", () => {

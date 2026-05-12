@@ -74,7 +74,8 @@ h2 {
 }
 
 .icon-button,
-.primary-button {
+.primary-button,
+.secondary-button {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
@@ -91,7 +92,8 @@ h2 {
 }
 
 .icon-button:hover,
-.primary-button:hover {
+.primary-button:hover,
+.secondary-button:hover {
   border-color: var(--accent);
 }
 
@@ -105,6 +107,12 @@ h2 {
   background: var(--accent);
   color: white;
   border-color: var(--accent);
+}
+
+.secondary-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border-radius: 8px;
 }
 
 .workspace {
@@ -251,6 +259,22 @@ h2 {
 .table-wrap {
   overflow: auto;
   max-height: 430px;
+}
+
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.table-footer[hidden] {
+  display: none;
 }
 
 table {
