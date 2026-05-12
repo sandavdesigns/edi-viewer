@@ -612,29 +612,29 @@ td.num {
 }
 
 .measurement-footer {
-  display: grid;
-  grid-template-columns: 34px 250px 104px 116px 116px minmax(150px, 190px) minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   overflow: hidden;
 }
 
 #measurementCount {
-  grid-column: 1 / 6;
+  flex: 0 0 auto;
 }
 
 .measurement-sum {
-  grid-column: 6 / 7;
-  overflow: visible;
+  flex: 1 1 auto;
+  overflow: hidden;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   font-weight: 860;
   text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .measurement-footer #measurementMore {
-  grid-column: 8 / 9;
-  justify-self: end;
+  flex: 0 0 auto;
 }
 
 .table-footer[hidden] {

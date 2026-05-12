@@ -1158,7 +1158,7 @@ function updateMeasurementFooter(visible, rows) {
   const total = rows.length;
   const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
   els.measurementCount.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
-  els.measurementSum.textContent = total ? formatNumber(sum) : "";
+  els.measurementSum.textContent = total ? `Summe: ${formatNumber(sum)}` : "";
   els.measurementMore.toggleAttribute("hidden", visible >= total);
 }
 
