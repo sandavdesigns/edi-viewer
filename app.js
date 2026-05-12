@@ -14,6 +14,9 @@ const state = {
   measurementView: "series",
   selectedMeteringPoint: "",
   selectedObis: "",
+  dateFrom: "",
+  dateTo: "",
+  compareDocumentId: "",
   selectedSeriesKey: "",
   selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
@@ -146,6 +149,8 @@ const els = {
   businessFilter: document.querySelector("#businessFilter"),
   meteringPointFilter: document.querySelector("#meteringPointFilter"),
   obisFilter: document.querySelector("#obisFilter"),
+  dateFromFilter: document.querySelector("#dateFromFilter"),
+  dateToFilter: document.querySelector("#dateToFilter"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
   treeView: document.querySelector("#treeView"),
   treeToggle: document.querySelector("#treeToggle"),
@@ -158,6 +163,13 @@ const els = {
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
   copyMeasurement: document.querySelector("#copyMeasurement"),
+  validationOpen: document.querySelector("#validationOpen"),
+  validationClose: document.querySelector("#validationClose"),
+  validationDialog: document.querySelector("#validationDialog"),
+  validationSummary: document.querySelector("#validationSummary"),
+  validationList: document.querySelector("#validationList"),
+  seriesInsights: document.querySelector("#seriesInsights"),
+  compareDocument: document.querySelector("#compareDocument"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
@@ -574,12 +586,14 @@ function render() {
 
   renderFacts(parsed);
   renderDocumentTabs();
+  renderCompareOptions();
   renderMeteringPointFilter(parsed);
   renderObisFilter(parsed);
   renderTree(parsed);
   renderMeasurementTable(parsed);
   renderBusinessTable(parsed);
   renderSegmentsTable(parsed);
+  renderSeriesInsights(parsed);
   renderChart(parsed);
 }
 
@@ -614,6 +628,27 @@ function renderDocumentTabs() {
     fragment.append(tab);
   }
   els.documentTabs.append(fragment);
+}
+
+function renderCompareOptions() {
+  const previous = state.compareDocumentId;
+  els.compareDocument.innerHTML = "";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "Kein Vergleich";
+  els.compareDocument.append(none);
+
+  for (const documentState of state.documents) {
+    if (documentState.id === state.activeDocumentId) continue;
+    const option = document.createElement("option");
+    option.value = String(documentState.id);
+    option.textContent = documentState.fileName;
+    els.compareDocument.append(option);
+  }
+
+  const values = [...els.compareDocument.options].map((option) => option.value);
+  state.compareDocumentId = values.includes(previous) ? previous : "";
+  els.compareDocument.value = state.compareDocumentId;
 }
 
 function renderFacts(parsed) {
@@ -829,6 +864,7 @@ function renderMeasurementTable(parsed) {
 
   const fragment = document.createDocumentFragment();
   for (const row of visibleRows) {
+    const summary = summarizeSeries(row);
     const tr = document.createElement("tr");
     tr.dataset.key = row.key;
     if (row.key === state.selectedSeriesKey) tr.className = "is-selected";
@@ -845,13 +881,13 @@ function renderMeasurementTable(parsed) {
     meteringCell.dataset.meteringPoint = row.meteringPoint;
     meteringCell.title = "Zählpunkt anzeigen";
     appendCell(tr, row.obis, "mono");
-    appendCell(tr, formatDateTime(row.from));
-    appendCell(tr, formatDateTime(row.to));
-    appendCell(tr, formatNumber(row.quantity), "num");
-    appendCell(tr, formatNumber(row.minimum), "num");
-    appendCell(tr, formatDateTime(row.minimumAt));
-    appendCell(tr, formatNumber(row.maximum), "num");
-    appendCell(tr, formatDateTime(row.maximumAt));
+    appendCell(tr, formatDateTime(summary.from));
+    appendCell(tr, formatDateTime(summary.to));
+    appendCell(tr, formatNumber(summary.quantity), "num");
+    appendCell(tr, formatNumber(summary.minimum), "num");
+    appendCell(tr, formatDateTime(summary.minimumAt));
+    appendCell(tr, formatNumber(summary.maximum), "num");
+    appendCell(tr, formatDateTime(summary.maximumAt));
     appendCell(tr, row.sender, "mono");
     appendCell(tr, row.receiver, "mono");
     fragment.append(tr);
@@ -862,7 +898,7 @@ function renderMeasurementTable(parsed) {
 
 function renderMeasurementPointTable(parsed) {
   const selectedSeries = getSelectedSeries(parsed);
-  const points = selectedSeries?.points || [];
+  const points = getFilteredSeriesPoints(selectedSeries);
   const visibleRows = points.slice(0, state.visiblePointRows);
   els.messageType.textContent = selectedSeries ? `${selectedSeries.meteringPoint} - ${selectedSeries.obis}` : "Einzelwerte";
   updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", ""]);
@@ -972,8 +1008,60 @@ function getFilteredMeasurementRows(parsed) {
   return parsed?.measurementSeries.filter((row) => {
     if (state.selectedMeteringPoint && row.meteringPoint !== state.selectedMeteringPoint) return false;
     if (state.selectedObis && row.obis !== state.selectedObis) return false;
+    if ((state.dateFrom || state.dateTo) && !getFilteredSeriesPoints(row).length) return false;
     return includesFilter(row, state.businessFilter);
   }) || [];
+}
+
+function getFilteredSeriesPoints(series) {
+  const start = parseDateInput(state.dateFrom);
+  const end = parseDateInput(state.dateTo);
+  return filterPointsByRange(series?.points || [], start, end);
+}
+
+function filterPointsByRange(points, start, end) {
+  if (!start && !end) return points;
+  return points.filter((point) => {
+    const time = parseDateValue(point.from);
+    if (!time) return true;
+    if (start && time < start) return false;
+    if (end && time > end) return false;
+    return true;
+  });
+}
+
+function summarizeSeries(row) {
+  const points = getFilteredSeriesPoints(row);
+  if (!points.length) return { ...row, points: [], pointCount: 0, quantity: 0, minimum: 0, minimumAt: "", maximum: 0, maximumAt: "", from: "", to: "" };
+  let quantity = 0;
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  let minimumAt = "";
+  let maximumAt = "";
+  for (const point of points) {
+    const value = Number(point.quantity) || 0;
+    quantity += value;
+    if (value < minimum) {
+      minimum = value;
+      minimumAt = point.from;
+    }
+    if (value > maximum) {
+      maximum = value;
+      maximumAt = point.from;
+    }
+  }
+  return {
+    ...row,
+    points,
+    pointCount: points.length,
+    quantity,
+    minimum,
+    minimumAt,
+    maximum,
+    maximumAt,
+    from: points[0]?.from || row.from,
+    to: points[points.length - 1]?.to || row.to,
+  };
 }
 
 function includesFilter(value, filter) {
@@ -1062,7 +1150,7 @@ function drawQuantityChart(svg, rows) {
 
 function drawMeasurementChart(svg, rows) {
   const selectedSeries = getSelectedSeries(state.parsed, rows);
-  const pointsForSeries = selectedSeries?.points || [];
+  const pointsForSeries = getFilteredSeriesPoints(selectedSeries);
   const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
 
   if (!values.length) {
@@ -1087,6 +1175,20 @@ function drawMeasurementChart(svg, rows) {
 
   addPath(svg, areaPath, "var(--chart-fill)", "none", 0);
   addPath(svg, linePath, "none", "var(--accent-2)", 1.8);
+
+  const compareSeries = getCompareSeries(selectedSeries);
+  if (compareSeries) {
+    const comparePoints = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom), parseDateInput(state.dateTo));
+    const compareValues = comparePoints.map((point) => Number(point.quantity)).filter((value) => Number.isFinite(value));
+    if (compareValues.length) {
+      const comparePath = buildStepPath(compareValues.map((value, index) => {
+        const x = plot.x + (index / Math.max(compareValues.length - 1, 1)) * plot.width;
+        const y = plot.y + plot.height - ((value - min) / range) * plot.height;
+        return [x, y, value];
+      }));
+      addPath(svg, comparePath, "none", "var(--accent)", 1.3, "6 4");
+    }
+  }
 
   const minPoint = points.find((point) => point[2] === min);
   const maxPoint = points.find((point) => point[2] === max);
@@ -1129,7 +1231,7 @@ function addPlotBackground(svg, x, y, width, height) {
   addLine(svg, x, y, x, y + height, "var(--line-strong)", 1.2);
 }
 
-function addPath(svg, d, fill, stroke, strokeWidth) {
+function addPath(svg, d, fill, stroke, strokeWidth, dash = "") {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", d);
   path.setAttribute("fill", fill);
@@ -1137,6 +1239,7 @@ function addPath(svg, d, fill, stroke, strokeWidth) {
   path.setAttribute("stroke-width", strokeWidth);
   path.setAttribute("stroke-linejoin", "round");
   path.setAttribute("stroke-linecap", "round");
+  if (dash) path.setAttribute("stroke-dasharray", dash);
   svg.append(path);
 }
 
@@ -1209,14 +1312,36 @@ function formatAxisDate(value) {
 }
 
 function formatDateTime(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length < 8) return value || "";
+  const text = String(value || "");
+  const german = text.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  if (german) return `${german[1]}.${german[2]}.${german[3]} ${german[4] || "00"}:${german[5] || "00"}`;
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (iso) return `${iso[3]}.${iso[2]}.${iso[1]} ${iso[4]}:${iso[5]}`;
+  const digits = text.replace(/\D/g, "");
+  if (digits.length < 8) return text;
   const year = digits.slice(0, 4);
   const month = digits.slice(4, 6);
   const day = digits.slice(6, 8);
   const hour = digits.slice(8, 10) || "00";
   const minute = digits.slice(10, 12) || "00";
   return `${day}.${month}.${year} ${hour}:${minute}`;
+}
+
+function parseDateInput(value) {
+  if (!value) return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : parseDateValue(value);
+}
+
+function parseDateValue(value) {
+  const text = String(value || "");
+  const german = text.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  if (german) return new Date(Number(german[3]), Number(german[2]) - 1, Number(german[1]), Number(german[4] || 0), Number(german[5] || 0)).getTime();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), Number(iso[4]), Number(iso[5])).getTime();
+  const digits = text.replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  return new Date(Number(digits.slice(0, 4)), Number(digits.slice(4, 6)) - 1, Number(digits.slice(6, 8)), Number(digits.slice(8, 10) || 0), Number(digits.slice(10, 12) || 0)).getTime();
 }
 
 function getSelectedSeries(parsed, candidates = null) {
@@ -1227,6 +1352,173 @@ function getSelectedSeries(parsed, candidates = null) {
 function updateGraphTitle(parsed) {
   const row = getSelectedSeries(parsed);
   els.graphTitle.textContent = row ? `${row.meteringPoint} - ${row.obis}: ${formatDateTime(row.from)} - ${formatDateTime(row.to)}` : "Lastgang / Mengenverlauf";
+}
+
+function renderSeriesInsights(parsed) {
+  els.seriesInsights.innerHTML = "";
+  const series = getSelectedSeries(parsed);
+  if (!series) {
+    appendInsight("Status", "Keine Zeitreihe");
+    return;
+  }
+
+  const points = getFilteredSeriesPoints(series);
+  const analysis = analyzeSeries({ ...series, points });
+  appendInsight("Werte", formatNumber(points.length));
+  appendInsight("Summe", formatNumber(points.reduce((sum, point) => sum + (Number(point.quantity) || 0), 0)));
+  appendInsight("Min / Max", points.length ? `${formatNumber(Math.min(...points.map((point) => Number(point.quantity) || 0)))} / ${formatNumber(Math.max(...points.map((point) => Number(point.quantity) || 0)))}` : "-");
+  appendInsight("Durchschnitt", points.length ? formatNumber(points.reduce((sum, point) => sum + (Number(point.quantity) || 0), 0) / points.length) : "-");
+  appendInsight("Lücken", String(analysis.gaps.length));
+  appendInsight("Ausreißer", String(analysis.outliers.length));
+  appendInsight("Status", formatStatusSummary(points));
+  appendInsight("Vergleich", compareSummary(series));
+}
+
+function appendInsight(label, value) {
+  const card = document.createElement("div");
+  card.className = "insight-card";
+  const title = document.createElement("span");
+  title.textContent = label;
+  const content = document.createElement("strong");
+  content.textContent = value || "-";
+  card.append(title, content);
+  els.seriesInsights.append(card);
+}
+
+function formatStatusSummary(points) {
+  const counts = points.reduce((acc, point) => {
+    const key = point.status || "-";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([status, count]) => `${status}: ${count}`)
+    .join(", ");
+}
+
+function getCompareSeries(series) {
+  if (!series || !state.compareDocumentId) return null;
+  const documentState = state.documents.find((item) => String(item.id) === String(state.compareDocumentId));
+  return documentState?.parsed?.measurementSeries.find((row) => row.key === series.key) || null;
+}
+
+function compareSummary(series) {
+  const compareSeries = getCompareSeries(series);
+  if (!compareSeries) return state.compareDocumentId ? "nicht gefunden" : "-";
+  const current = getFilteredSeriesPoints(series);
+  const other = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom), parseDateInput(state.dateTo));
+  const currentMap = new Map(current.map((point) => [`${point.from || ""}||${point.to || ""}`, Number(point.quantity) || 0]));
+  let changed = 0;
+  let missing = 0;
+  for (const point of other) {
+    const key = `${point.from || ""}||${point.to || ""}`;
+    if (!currentMap.has(key)) {
+      missing += 1;
+    } else if (Math.abs((Number(point.quantity) || 0) - currentMap.get(key)) > 0.000001) {
+      changed += 1;
+    }
+  }
+  const newValues = current.filter((point) => !other.some((otherPoint) => `${otherPoint.from || ""}||${otherPoint.to || ""}` === `${point.from || ""}||${point.to || ""}`)).length;
+  return `${changed} geändert, ${missing} fehlen, ${newValues} neu`;
+}
+
+function analyzeSeries(series) {
+  const points = [...(series?.points || [])].sort((a, b) => (parseDateValue(a.from) || 0) - (parseDateValue(b.from) || 0));
+  const seen = new Set();
+  const duplicates = [];
+  const gaps = [];
+  const values = points.map((point) => Number(point.quantity)).filter((value) => Number.isFinite(value));
+  const outliers = [];
+
+  for (const point of points) {
+    const key = `${point.from || ""}||${point.to || ""}`;
+    if (seen.has(key)) duplicates.push(point);
+    seen.add(key);
+  }
+
+  const diffs = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = parseDateValue(points[index - 1].from);
+    const current = parseDateValue(points[index].from);
+    if (previous && current && current > previous) diffs.push(current - previous);
+  }
+  const expected = median(diffs);
+  if (expected) {
+    for (let index = 1; index < points.length; index += 1) {
+      const previous = parseDateValue(points[index - 1].from);
+      const current = parseDateValue(points[index].from);
+      if (previous && current && current - previous > expected * 1.5) {
+        gaps.push({ from: points[index - 1].from, to: points[index].from, missing: Math.max(1, Math.round((current - previous) / expected) - 1) });
+      }
+    }
+  }
+
+  if (values.length >= 8) {
+    const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
+    if (deviation > 0) {
+      points.forEach((point) => {
+        const value = Number(point.quantity);
+        if (Number.isFinite(value) && Math.abs(value - average) > deviation * 4) outliers.push(point);
+      });
+    }
+  }
+
+  return { expectedInterval: expected, duplicates, gaps, outliers };
+}
+
+function median(values) {
+  const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function buildValidationReport(parsed) {
+  if (!parsed) return [];
+  const issues = [];
+  if (!parsed.validation.ok) {
+    issues.push({ severity: "error", title: "EDIFACT-Struktur", detail: parsed.validation.message, context: state.fileName });
+  }
+
+  for (const series of parsed.measurementSeries) {
+    const analysis = analyzeSeries(series);
+    const label = `${series.meteringPoint} | ${series.obis}`;
+    if (analysis.duplicates.length) issues.push({ severity: "warn", title: "Doppelte Zeitpunkte", detail: `${analysis.duplicates.length} doppelte Zeitpunkte gefunden`, context: label });
+    if (analysis.gaps.length) issues.push({ severity: "warn", title: "Lücken im Zeitraster", detail: `${analysis.gaps.length} Lücken, geschätzt ${analysis.gaps.reduce((sum, gap) => sum + gap.missing, 0)} fehlende Werte`, context: label });
+    if (analysis.outliers.length) issues.push({ severity: "warn", title: "Ausreißer", detail: `${analysis.outliers.length} auffällige Werte`, context: label });
+  }
+
+  if (!issues.length) issues.push({ severity: "ok", title: "Keine Auffälligkeiten", detail: "Struktur, Zeitraster und Werte wirken formal plausibel.", context: state.fileName || "-" });
+  return issues;
+}
+
+function renderValidationReport() {
+  const issues = buildValidationReport(state.parsed);
+  els.validationSummary.textContent = `${issues.length} Einträge`;
+  els.validationList.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  for (const issue of issues.slice(0, 500)) {
+    const row = document.createElement("div");
+    row.className = "validation-item";
+    const severity = document.createElement("span");
+    severity.className = `severity ${issue.severity}`;
+    severity.textContent = issue.severity === "ok" ? "ok" : issue.severity;
+    const text = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = issue.title;
+    const detail = document.createElement("div");
+    detail.textContent = issue.detail;
+    text.append(title, detail);
+    const context = document.createElement("span");
+    context.className = "subtle";
+    context.textContent = issue.context || "";
+    row.append(severity, text, context);
+    fragment.append(row);
+  }
+  els.validationList.append(fragment);
 }
 
 function download(filename, mimeType, content) {
@@ -1270,7 +1562,7 @@ function selectedLoadProfileRows(parsed, series) {
   if (!parsed) return [];
   const rowsByPeriod = new Map();
   for (const row of series) {
-    for (const point of row.points) {
+    for (const point of getFilteredSeriesPoints(row)) {
       const key = `${point.from || ""}||${point.to || ""}`;
       if (!rowsByPeriod.has(key)) {
         rowsByPeriod.set(key, {
@@ -1330,7 +1622,7 @@ function currentMeasurementCopyData() {
     };
   }
 
-  const rows = getFilteredMeasurementRows(state.parsed).slice(0, state.visibleMeasurementRows);
+  const rows = getFilteredMeasurementRows(state.parsed).slice(0, state.visibleMeasurementRows).map((row) => summarizeSeries(row));
   return {
     rows,
     columns: [
@@ -1418,6 +1710,9 @@ function defaultDocumentView() {
     measurementView: "series",
     selectedMeteringPoint: "",
     selectedObis: "",
+    dateFrom: "",
+    dateTo: "",
+    compareDocumentId: "",
     selectedSeriesKey: "",
     selectedPointIndex: null,
     selectedSeriesKeys: [],
@@ -1437,6 +1732,9 @@ function currentDocumentView() {
     measurementView: state.measurementView,
     selectedMeteringPoint: state.selectedMeteringPoint,
     selectedObis: state.selectedObis,
+    dateFrom: state.dateFrom,
+    dateTo: state.dateTo,
+    compareDocumentId: state.compareDocumentId,
     selectedSeriesKey: state.selectedSeriesKey,
     selectedPointIndex: state.selectedPointIndex,
     selectedSeriesKeys: [...state.selectedSeriesKeys],
@@ -1461,6 +1759,9 @@ function applyDocumentView(view) {
     measurementView: view.measurementView || "series",
     selectedMeteringPoint: view.selectedMeteringPoint || "",
     selectedObis: view.selectedObis || "",
+    dateFrom: view.dateFrom || "",
+    dateTo: view.dateTo || "",
+    compareDocumentId: view.compareDocumentId || "",
     selectedSeriesKey: view.selectedSeriesKey || "",
     selectedPointIndex: Number.isInteger(view.selectedPointIndex) ? view.selectedPointIndex : null,
     selectedSeriesKeys: new Set(view.selectedSeriesKeys || []),
@@ -1472,6 +1773,8 @@ function applyDocumentView(view) {
   els.segmentFilter.value = state.segmentFilter;
   els.businessFilter.value = state.businessFilter;
   els.businessDetailFilter.value = state.businessDetailFilter;
+  els.dateFromFilter.value = state.dateFrom;
+  els.dateToFilter.value = state.dateTo;
 }
 
 function saveActiveDocumentState() {
@@ -1525,6 +1828,7 @@ function openSeriesDetail(seriesKey) {
   state.visiblePointRows = INITIAL_VISIBLE_ROWS;
   renderMeasurementTable(state.parsed);
   renderTree(state.parsed);
+  renderSeriesInsights(state.parsed);
   renderChart(state.parsed);
 }
 
@@ -1533,6 +1837,7 @@ function openSeriesList() {
   state.selectedPointIndex = null;
   renderMeasurementTable(state.parsed);
   renderTree(state.parsed);
+  renderSeriesInsights(state.parsed);
   renderChart(state.parsed);
 }
 
@@ -1546,6 +1851,7 @@ function showMeteringPoint(meteringPoint) {
   renderObisFilter(state.parsed);
   renderMeasurementTable(state.parsed);
   renderTree(state.parsed);
+  renderSeriesInsights(state.parsed);
   renderChart(state.parsed);
 }
 
@@ -1576,9 +1882,23 @@ function wireEvents() {
     state.selectedPointIndex = null;
     state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
     renderMeasurementTable(state.parsed);
+    renderSeriesInsights(state.parsed);
     renderChart(state.parsed);
     renderTree(state.parsed);
   });
+  for (const input of [els.dateFromFilter, els.dateToFilter]) {
+    input.addEventListener("change", () => {
+      state.dateFrom = els.dateFromFilter.value;
+      state.dateTo = els.dateToFilter.value;
+      state.selectedPointIndex = null;
+      state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+      state.visiblePointRows = INITIAL_VISIBLE_ROWS;
+      renderMeasurementTable(state.parsed);
+      renderSeriesInsights(state.parsed);
+      renderChart(state.parsed);
+      renderTree(state.parsed);
+    });
+  }
   els.businessDetailFilter.addEventListener("input", (event) => {
     state.businessDetailFilter = event.target.value;
     state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
@@ -1586,6 +1906,12 @@ function wireEvents() {
   });
   els.chartMode?.addEventListener("change", (event) => {
     state.chartMode = event.target.value;
+    renderChart(state.parsed);
+  });
+
+  els.compareDocument.addEventListener("change", (event) => {
+    state.compareDocumentId = event.target.value;
+    renderSeriesInsights(state.parsed);
     renderChart(state.parsed);
   });
 
@@ -1611,6 +1937,23 @@ function wireEvents() {
 
   els.infoDialog.addEventListener("click", (event) => {
     if (event.target === els.infoDialog) els.infoDialog.close();
+  });
+
+  els.validationOpen.addEventListener("click", () => {
+    renderValidationReport();
+    if (typeof els.validationDialog.showModal === "function") {
+      els.validationDialog.showModal();
+    } else {
+      els.validationDialog.setAttribute("open", "");
+    }
+  });
+
+  els.validationClose.addEventListener("click", () => {
+    els.validationDialog.close();
+  });
+
+  els.validationDialog.addEventListener("click", (event) => {
+    if (event.target === els.validationDialog) els.validationDialog.close();
   });
 
   els.treeToggle.addEventListener("click", () => {
@@ -1723,6 +2066,7 @@ function wireEvents() {
     if (pointRow) {
       state.selectedPointIndex = Number(pointRow.dataset.pointIndex);
       renderMeasurementTable(state.parsed);
+      renderSeriesInsights(state.parsed);
       renderChart(state.parsed);
       return;
     }
@@ -1748,6 +2092,7 @@ function wireEvents() {
     state.measurementView = "series";
     renderMeasurementTable(state.parsed);
     renderTree(state.parsed);
+    renderSeriesInsights(state.parsed);
     renderChart(state.parsed);
   });
 

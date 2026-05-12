@@ -385,6 +385,20 @@ h2 {
   width: min(230px, 22vw);
 }
 
+#dateFromFilter,
+#dateToFilter {
+  width: 174px;
+}
+
+#compareDocument {
+  width: min(260px, 28vw);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 9px;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
 .facts-list {
   display: grid;
   gap: 0;
@@ -593,6 +607,10 @@ td.num {
   background: transparent;
 }
 
+.wide-dialog {
+  width: min(980px, calc(100vw - 32px));
+}
+
 .info-dialog::backdrop {
   background: var(--modal-backdrop);
   backdrop-filter: blur(3px);
@@ -634,6 +652,83 @@ td.num {
 .info-dialog .facts-list {
   max-height: 470px;
   overflow: auto;
+}
+
+.validation-list {
+  max-height: min(640px, calc(100vh - 150px));
+  overflow: auto;
+  padding: 8px 12px 14px;
+}
+
+.validation-item {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-table);
+  font-size: 0.82rem;
+}
+
+.validation-item strong {
+  color: var(--ink);
+}
+
+.severity {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 74px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--tag-bg);
+  color: var(--tag-ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.severity.error {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.severity.warn {
+  background: color-mix(in srgb, #d69725 18%, transparent);
+  color: #b37212;
+}
+
+.insight-strip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 1px;
+  min-height: 54px;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.insight-card {
+  min-width: 0;
+  padding: 7px 10px;
+  background: var(--surface);
+}
+
+.insight-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.insight-card strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tree-panel {
@@ -738,7 +833,7 @@ body.is-tree-collapsed .tree-toggle::before {
 }
 
 .chart-wrap.large {
-  height: calc(100% - 40px);
+  height: calc(100% - 95px);
   min-height: 0;
   padding: 0;
   background: var(--plot);
