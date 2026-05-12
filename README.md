@@ -19,10 +19,12 @@ Zum schnellen Testen liegt unter `examples/mscons-sample.edi` eine kleine MSCONS
 ## Docker
 
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 Danach ist die App unter <http://localhost:8080> erreichbar.
+
+Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Das ist besonders für Portainer praktisch, weil kein BuildKit/Builder benötigt wird.
 
 ## Grenzen
 
