@@ -1,17 +1,17 @@
 # EDI Viewer
 
-Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachrichten.
+Browserbasierter EDIFACT-Viewer für MSCONS- und ALOCAT-Dateien im deutschen Strom- und Gasmarkt.
 
 ## Funktionen
 
 - Läuft vollständig im Browser, ohne Backend-Upload der EDIFACT-Dateien
 - Unterstützt EDIFACT-Servicezeichen aus `UNA`
-- Liest Segmentstrukturen wie `UNB`, `UNH`, `BGM`, `DTM`, `NAD`, `LOC`, `RFF`, `QTY`, `MOA`, `PRI`, `UNT`, `UNZ`
-- Erkennt gängige Nachrichtentypen wie `UTILMD`, `MSCONS`, `INVOIC`, `REMADV`, `APERAK`, `CONTRL`, `PRICAT`, `ORDERS`, `ORDRSP`, `QUOTES` und `REQOTE`
-- Zeigt eine moderne Arbeitsansicht mit MSCONS-Messwerttabelle, Lastgang-Grafik und kompaktem Info-Modal
-- Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
+- Liest Segmentstrukturen wie `UNB`, `UNH`, `BGM`, `DTM`, `NAD`, `LOC`, `RFF`, `LIN`, `QTY`, `STS`, `UNT`, `UNZ`
+- Erkennt und visualisiert `MSCONS` sowie `ALOCAT`
+- Zeigt eine moderne Arbeitsansicht mit Lastgang-Tabelle, Grafik und kompaktem Info-Modal
+- Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code sowie ALOCAT-Reihen nach `ZEU` und `QTY`-Qualifier; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit formatierten `von`/`bis`-Zeitpunkten, `wert` und `status`
-- Der Button `MSCONS Info` öffnet wichtige Dateieigenschaften und Prüfhinweise als Modal
+- Der Button `Datei Info` öffnet wichtige Dateieigenschaften und Prüfhinweise als Modal
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
 - Exportiert ausgewählte Lastgänge als CSV und die komplette Analyse als JSON

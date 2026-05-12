@@ -62,17 +62,9 @@ const SEGMENT_LABELS = {
 };
 
 const MESSAGE_TYPES = {
-  UTILMD: "Stammdaten / Lieferantenwechsel / Marktprozesse",
+  ALOCAT: "Allokationsdaten",
   MSCONS: "Messwerte und Energiemengen",
-  INVOIC: "Rechnung",
-  REMADV: "Zahlungsavis",
-  APERAK: "Anwendungsfehler und Rückmeldungen",
-  CONTRL: "Syntax- und Empfangsbestätigung",
-  PRICAT: "Preiskatalog",
-  ORDERS: "Auftrag",
   ORDRSP: "Auftragsantwort",
-  QUOTES: "Angebot",
-  REQOTE: "Angebotsanforderung",
 };
 
 const QUALIFIER_LABELS = {
@@ -356,7 +348,11 @@ function makeRow(type, qualifier, value, extra, segment) {
 function extractFacts(segments, rows, chars, byteSize = 0) {
   const firstUnb = segments.find((segment) => segment.tag === "UNB");
   const firstUnh = segments.find((segment) => segment.tag === "UNH");
-  const messageType = firstUnh?.elements[1]?.[0] || "";
+  const firstBgm = segments.find((segment) => segment.tag === "BGM");
+  const bgmCode = firstBgm?.elements[0]?.[0] || "";
+  const documentNumber = firstBgm?.elements[1]?.[0] || "";
+  const rawMessageType = firstUnh?.elements[1]?.[0] || "";
+  const messageType = isAlocatMessage(rawMessageType, bgmCode, documentNumber) ? "ALOCAT" : rawMessageType;
   const version = firstUnh?.elements[1]?.slice(1).filter(Boolean).join(".") || "";
   const sender = firstUnb?.elements[1]?.join(":") || rows.find((row) => row.type === "Marktpartner" && row.qualifier === "MS")?.value || "";
   const receiver = firstUnb?.elements[2]?.join(":") || rows.find((row) => row.type === "Marktpartner" && row.qualifier === "MR")?.value || "";
@@ -380,7 +376,13 @@ function extractFacts(segments, rows, chars, byteSize = 0) {
   };
 }
 
+function isAlocatMessage(messageType, bgmCode, documentNumber) {
+  return messageType === "ORDRSP" && (["X1G", "X5G"].includes(bgmCode) || String(documentNumber || "").startsWith("ALOCAT"));
+}
+
 function extractMeasurementRows(segments, facts) {
+  if (facts.messageType === "ALOCAT") return extractAlocatRows(segments, facts);
+
   const rows = [];
   const context = {
     meteringPoint: "",
@@ -478,6 +480,116 @@ function extractMeasurementRows(segments, facts) {
   return rows;
 }
 
+function extractAlocatRows(segments, facts) {
+  const rows = [];
+  const context = {
+    allocationReference: "",
+    documentStart: "",
+    documentEnd: "",
+  };
+  let group = null;
+  let pendingPeriod = null;
+
+  const finishGroup = () => {
+    if (!group || !group.points.length) {
+      group = null;
+      return;
+    }
+    const meteringPoint = group.zeu || context.allocationReference || `Position ${group.line || rows.length + 1}`;
+    const thirdParty = group.zsh || context.allocationReference || "";
+    for (const point of group.points) {
+      rows.push({
+        index: rows.length,
+        meteringPoint,
+        obis: point.obis || "Z03",
+        from: point.from || context.documentStart || "-",
+        to: point.to || context.documentEnd || point.from || "-",
+        quantity: point.quantity,
+        unit: point.unit || "",
+        minimum: point.quantity,
+        minimumAt: point.from || "",
+        maximum: point.quantity,
+        maximumAt: point.from || "",
+        sender: facts.sender || "-",
+        receiver: facts.receiver || "-",
+        thirdParty,
+        status: point.status || "",
+        segment: point.segment,
+      });
+    }
+    group = null;
+  };
+
+  for (const segment of segments) {
+    if (segment.tag === "RFF") {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[0]?.[1] || "";
+      if (qualifier === "Z13" && value) context.allocationReference = value;
+    }
+
+    if (segment.tag === "DTM") {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[0]?.[1] || "";
+      const format = segment.elements[0]?.[2] || "";
+      const range = ["2", "Z01"].includes(qualifier) ? splitEdifactDateRange(value) : null;
+      if (range) {
+        const formatted = range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102"));
+        if (qualifier === "Z01") {
+          context.documentStart = formatted[0] || context.documentStart;
+          context.documentEnd = formatted[1] || context.documentEnd;
+        } else {
+          pendingPeriod = { from: formatted[0] || "", to: formatted[1] || "" };
+        }
+      } else if (format === "203" && qualifier === "2") {
+        pendingPeriod = { from: formatEdifactDate(value, format), to: "" };
+      }
+    }
+
+    if (segment.tag === "LIN") {
+      finishGroup();
+      group = {
+        line: segment.elements[0]?.[0] || "",
+        zeu: "",
+        zsh: "",
+        points: [],
+      };
+      pendingPeriod = null;
+      continue;
+    }
+
+    if (segment.tag === "NAD" && group) {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[1]?.[0] || "";
+      if (qualifier === "ZEU" && value) group.zeu = value;
+      if (qualifier === "ZSH" && value) group.zsh = value;
+      continue;
+    }
+
+    if (segment.tag === "QTY" && group) {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const quantity = Number(normalizeDecimal(segment.elements[0]?.[1] || ""));
+      if (!Number.isFinite(quantity)) continue;
+      group.points.push({
+        obis: qualifier || "Z03",
+        from: pendingPeriod?.from || "",
+        to: pendingPeriod?.to || "",
+        quantity,
+        unit: segment.elements[0]?.[2] || "",
+        status: "",
+        segment: `${segment.index} ${segment.tag}`,
+      });
+      continue;
+    }
+
+    if (segment.tag === "STS" && group?.points.length) {
+      group.points[group.points.length - 1].status = segment.elements.flat().filter(Boolean).join(":");
+    }
+  }
+
+  finishGroup();
+  return rows;
+}
+
 function buildMeasurementSeries(points) {
   const seriesByKey = new Map();
 
@@ -564,10 +676,20 @@ function formatEdifactDate(value, format) {
   if (format === "102" && /^\d{8}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)}`;
   if (format === "203" && /^\d{12}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)} ${value.slice(8, 10)}:${value.slice(10, 12)}`;
   if (format === "303" && /^\d{14}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)} ${value.slice(8, 10)}:${value.slice(10, 12)}:${value.slice(12, 14)}`;
-  if (format === "718" && value.includes("-")) {
-    return value.split("-").map((part) => formatEdifactDate(part, "102")).join(" bis ");
+  if (["718", "719"].includes(format)) {
+    const range = splitEdifactDateRange(value);
+    if (range) return range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102")).join(" bis ");
   }
   return value;
+}
+
+function splitEdifactDateRange(value) {
+  const text = String(value || "");
+  if (text.includes("-")) return text.split("-");
+  const digits = text.replace(/\D/g, "");
+  if (digits.length === 24) return [digits.slice(0, 12), digits.slice(12, 24)];
+  if (digits.length === 16) return [digits.slice(0, 8), digits.slice(8, 16)];
+  return null;
 }
 
 function normalizeDecimal(value) {
@@ -749,7 +871,8 @@ function renderTree(parsed) {
 
 function updateTreePanelState() {
   document.body.classList.toggle("is-tree-collapsed", state.treeCollapsed);
-  els.treeToggle.textContent = state.treeCollapsed ? "MSCONS anzeigen" : "MSCONS";
+  const label = state.parsed?.facts?.messageType === "ALOCAT" ? "ALOCAT" : "MSCONS";
+  els.treeToggle.textContent = state.treeCollapsed ? `${label} anzeigen` : label;
   els.treeToggle.setAttribute("aria-expanded", String(!state.treeCollapsed));
 }
 
