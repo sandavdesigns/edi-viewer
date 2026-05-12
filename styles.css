@@ -681,30 +681,14 @@ td.num {
   background: var(--surface-soft);
 }
 
-.modal-heading span,
-.info-status span {
+.modal-heading span {
   color: var(--muted);
   font-size: 0.8rem;
-}
-
-.info-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--line);
 }
 
 .info-dialog .facts-list {
   max-height: 470px;
   overflow: auto;
-}
-
-.validation-list {
-  max-height: min(640px, calc(100vh - 150px));
-  overflow: auto;
-  padding: 8px 12px 14px;
 }
 
 .manual-content {
@@ -738,44 +722,6 @@ td.num {
 
 .manual-content li + li {
   margin-top: 4px;
-}
-
-.validation-item {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: start;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--text-table);
-  font-size: 0.82rem;
-}
-
-.validation-item strong {
-  color: var(--ink);
-}
-
-.severity {
-  display: inline-flex;
-  justify-content: center;
-  min-width: 74px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--tag-bg);
-  color: var(--tag-ink);
-  font-size: 0.72rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.severity.error {
-  background: color-mix(in srgb, var(--danger) 18%, transparent);
-  color: var(--danger);
-}
-
-.severity.warn {
-  background: color-mix(in srgb, #d69725 18%, transparent);
-  color: #b37212;
 }
 
 .insight-strip {

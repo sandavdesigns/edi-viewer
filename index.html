@@ -69,7 +69,6 @@
                   <span>0 ausblenden</span>
                 </label>
                 <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Messdaten filtern" />
-                <button id="validationOpen" class="secondary-button" type="button">Prüfung</button>
                 <button id="copyMeasurement" class="secondary-button" type="button">Kopieren</button>
               </div>
             </div>
@@ -177,24 +176,7 @@
           </div>
           <button id="infoClose" class="icon-button" type="button" aria-label="Info schließen">×</button>
         </div>
-        <div class="info-status">
-          <span>Prüfung</span>
-          <strong id="validationState">Bereit</strong>
-        </div>
         <dl id="factsList" class="facts-list property-grid"></dl>
-      </div>
-    </dialog>
-
-    <dialog id="validationDialog" class="info-dialog wide-dialog">
-      <div class="modal-panel">
-        <div class="modal-heading">
-          <div>
-            <h2>Prüfbericht</h2>
-            <span id="validationSummary">Keine Datei geladen</span>
-          </div>
-          <button id="validationClose" class="icon-button" type="button" aria-label="Prüfbericht schließen">×</button>
-        </div>
-        <div id="validationList" class="validation-list"></div>
       </div>
     </dialog>
 
@@ -222,11 +204,7 @@
           </section>
           <section>
             <h3>Grafik und Kennzahlen</h3>
-            <p>Die Grafik zeigt die ausgewählte Zeitreihe. In der Einzelwertansicht markiert ein Klick auf einen Wert dessen Position in der Grafik. Die Kennzahlenleiste zeigt Werteanzahl, Summe, Min/Max, Durchschnitt, Lücken, Ausreißer und Status.</p>
-          </section>
-          <section>
-            <h3>Prüfung</h3>
-            <p>Der Button <strong>Prüfung</strong> erstellt einen Prüfbericht. Er prüft EDIFACT-Struktur, doppelte Zeitpunkte, Lücken im Zeitraster und auffällige Ausreißer. Bei großen Dateien öffnet das Fenster sofort und berechnet den Bericht anschließend.</p>
+            <p>Die Grafik zeigt die ausgewählte Zeitreihe. In der Einzelwertansicht markiert ein Klick auf einen Wert dessen Position in der Grafik. Die Kennzahlenleiste zeigt Werteanzahl, Summe, Min/Max, Durchschnitt, Lücken und Status.</p>
           </section>
           <section>
             <h3>Export und Kopieren</h3>

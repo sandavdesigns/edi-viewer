@@ -145,7 +145,6 @@ const els = {
   fileName: document.querySelector("#fileName"),
   messageType: document.querySelector("#messageType"),
   segmentCount: document.querySelector("#segmentCount"),
-  validationState: document.querySelector("#validationState"),
   factsList: document.querySelector("#factsList"),
   chart: document.querySelector("#chart"),
   chartMode: document.querySelector("#chartMode"),
@@ -172,11 +171,6 @@ const els = {
   measurementSum: document.querySelector("#measurementSum"),
   measurementMore: document.querySelector("#measurementMore"),
   copyMeasurement: document.querySelector("#copyMeasurement"),
-  validationOpen: document.querySelector("#validationOpen"),
-  validationClose: document.querySelector("#validationClose"),
-  validationDialog: document.querySelector("#validationDialog"),
-  validationSummary: document.querySelector("#validationSummary"),
-  validationList: document.querySelector("#validationList"),
   seriesInsights: document.querySelector("#seriesInsights"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
@@ -760,8 +754,6 @@ function render() {
   els.fileName.textContent = parsed ? formatDocumentSubtitle(parsed) : "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
   els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
-  els.validationState.textContent = parsed ? parsed.validation.message : "Bereit";
-  els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
   renderFacts(parsed);
   renderDocumentTabs();
@@ -1538,7 +1530,6 @@ function renderSeriesInsights(parsed) {
   appendInsight("Min / Max", points.length ? `${formatNumber(Math.min(...points.map((point) => Number(point.quantity) || 0)))} / ${formatNumber(Math.max(...points.map((point) => Number(point.quantity) || 0)))}` : "-");
   appendInsight("Durchschnitt", points.length ? formatNumber(points.reduce((sum, point) => sum + (Number(point.quantity) || 0), 0) / points.length) : "-");
   appendInsight("Lücken", String(analysis.gaps.length));
-  appendInsight("Ausreißer", String(analysis.outliers.length));
   appendInsight("Status", formatStatusSummary(points));
 }
 
@@ -1616,70 +1607,6 @@ function median(values) {
   if (!sorted.length) return 0;
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-function buildValidationReport(parsed) {
-  if (!parsed) return [];
-  const issues = [];
-  if (!parsed.validation.ok) {
-    issues.push({ severity: "error", title: "EDIFACT-Struktur", detail: parsed.validation.message, context: state.fileName });
-  }
-
-  for (const series of parsed.measurementSeries) {
-    const analysis = analyzeSeries(series);
-    const label = `${series.meteringPoint} | ${series.obis}`;
-    if (analysis.duplicates.length) issues.push({ severity: "warn", title: "Doppelte Zeitpunkte", detail: `${analysis.duplicates.length} doppelte Zeitpunkte gefunden`, context: label });
-    if (analysis.gaps.length) issues.push({ severity: "warn", title: "Lücken im Zeitraster", detail: `${analysis.gaps.length} Lücken, geschätzt ${analysis.gaps.reduce((sum, gap) => sum + gap.missing, 0)} fehlende Werte`, context: label });
-    if (analysis.outliers.length) issues.push({ severity: "warn", title: "Ausreißer", detail: `${analysis.outliers.length} auffällige Werte`, context: label });
-  }
-
-  if (!issues.length) issues.push({ severity: "ok", title: "Keine Auffälligkeiten", detail: "Struktur, Zeitraster und Werte wirken formal plausibel.", context: state.fileName || "-" });
-  return issues;
-}
-
-function renderValidationReport() {
-  const issues = buildValidationReport(state.parsed);
-  els.validationSummary.textContent = `${issues.length} Einträge`;
-  els.validationList.innerHTML = "";
-  const fragment = document.createDocumentFragment();
-  for (const issue of issues.slice(0, 500)) {
-    const row = document.createElement("div");
-    row.className = "validation-item";
-    const severity = document.createElement("span");
-    severity.className = `severity ${issue.severity}`;
-    severity.textContent = issue.severity === "ok" ? "ok" : issue.severity;
-    const text = document.createElement("div");
-    const title = document.createElement("strong");
-    title.textContent = issue.title;
-    const detail = document.createElement("div");
-    detail.textContent = issue.detail;
-    text.append(title, detail);
-    const context = document.createElement("span");
-    context.className = "subtle";
-    context.textContent = issue.context || "";
-    row.append(severity, text, context);
-    fragment.append(row);
-  }
-  els.validationList.append(fragment);
-}
-
-function openValidationDialog() {
-  els.validationSummary.textContent = "Prüfung läuft...";
-  els.validationList.innerHTML = '<div class="validation-item"><span class="severity">Info</span><div><strong>Analyse wird erstellt</strong><div>Struktur, Lücken und Ausreißer werden geprüft.</div></div><span></span></div>';
-  openDialog(els.validationDialog);
-  window.setTimeout(() => {
-    try {
-      renderValidationReport();
-    } catch (error) {
-      els.validationSummary.textContent = "Fehler";
-      els.validationList.innerHTML = "";
-      const row = document.createElement("div");
-      row.className = "validation-item";
-      row.innerHTML = '<span class="severity error">Fehler</span><div><strong>Prüfung fehlgeschlagen</strong><div></div></div><span></span>';
-      row.querySelector("div div").textContent = error?.message || "Unbekannter Fehler";
-      els.validationList.append(row);
-    }
-  }, 0);
 }
 
 function openDialog(dialog) {
@@ -2119,18 +2046,6 @@ function wireEvents() {
 
   els.infoDialog.addEventListener("click", (event) => {
     if (event.target === els.infoDialog) closeDialog(els.infoDialog);
-  });
-
-  els.validationOpen.addEventListener("click", () => {
-    openValidationDialog();
-  });
-
-  els.validationClose.addEventListener("click", () => {
-    closeDialog(els.validationDialog);
-  });
-
-  els.validationDialog.addEventListener("click", (event) => {
-    if (event.target === els.validationDialog) closeDialog(els.validationDialog);
   });
 
   els.manualOpen.addEventListener("click", () => {
