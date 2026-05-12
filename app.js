@@ -166,8 +166,8 @@ const els = {
   manualDialog: document.querySelector("#manualDialog"),
   measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
-  measurementSummary: document.querySelector("#measurementSummary"),
   measurementCount: document.querySelector("#measurementCount"),
+  measurementSum: document.querySelector("#measurementSum"),
   measurementMore: document.querySelector("#measurementMore"),
   copyMeasurement: document.querySelector("#copyMeasurement"),
   validationOpen: document.querySelector("#validationOpen"),
@@ -1003,8 +1003,8 @@ function renderBusinessTable(parsed) {
 
 function renderMeasurementTable(parsed) {
   els.measurementTable.innerHTML = "";
-  renderMeasurementSummary([]);
   if (state.measurementView === "points") {
+    els.measurementSum.textContent = "";
     renderMeasurementPointTable(parsed);
     return;
   }
@@ -1015,7 +1015,6 @@ function renderMeasurementTable(parsed) {
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   renderSelectAllHeader(rows);
   updateMeasurementFooter(visibleRows.length, rows);
-  renderMeasurementSummary(rows);
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
@@ -1144,20 +1143,6 @@ function appendCell(row, text, className = "") {
   return td;
 }
 
-function renderMeasurementSummary(rows) {
-  els.measurementSummary.innerHTML = "";
-  els.measurementSummary.hidden = !rows.length || state.measurementView !== "series";
-  if (els.measurementSummary.hidden) return;
-  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
-  const cells = ["", "Summe gefiltert", "", "", "", formatNumber(sum), "", "", "", "", "", ""];
-  for (const [index, value] of cells.entries()) {
-    const cell = document.createElement("span");
-    cell.textContent = value;
-    if (index === 5) cell.className = "num";
-    els.measurementSummary.append(cell);
-  }
-}
-
 function appendEmpty(target, colspan = 5) {
   const row = els.emptyRowTemplate.content.firstElementChild.cloneNode(true);
   row.firstElementChild.colSpan = colspan;
@@ -1171,7 +1156,9 @@ function updateTableFooter(countEl, moreButton, visible, total, label) {
 
 function updateMeasurementFooter(visible, rows) {
   const total = rows.length;
+  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
   els.measurementCount.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
+  els.measurementSum.textContent = total ? formatNumber(sum) : "";
   els.measurementMore.toggleAttribute("hidden", visible >= total);
 }
 

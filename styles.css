@@ -464,7 +464,7 @@ h2 {
 
 .measurement-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .measurement-panel .table-wrap {
@@ -527,36 +527,6 @@ tr.is-selected td {
   background: var(--select);
 }
 
-.measurement-summary {
-  display: grid;
-  grid-template-columns: 34px 250px 104px 116px 116px 86px 86px 116px 86px 116px 132px 132px;
-  min-width: 1120px;
-  border-top: 2px solid var(--line-strong);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-soft);
-  color: var(--ink);
-  font-size: 0.76rem;
-  font-weight: 860;
-}
-
-.measurement-summary[hidden] {
-  display: none;
-}
-
-.measurement-summary span {
-  overflow: hidden;
-  padding: 5px 6px;
-  border-right: 1px solid var(--line);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.measurement-summary .num {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-/* Legacy class kept harmless for older cached DOM during refreshes. */
 td.mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.76rem;
@@ -639,6 +609,32 @@ td.num {
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.measurement-footer {
+  display: grid;
+  grid-template-columns: 34px minmax(250px, 1fr) 104px 116px 116px minmax(150px, 190px) 86px 116px 86px 116px 132px 132px;
+  align-items: center;
+  overflow-x: auto;
+}
+
+#measurementCount {
+  grid-column: 1 / 6;
+}
+
+.measurement-sum {
+  grid-column: 6 / 7;
+  overflow: visible;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 860;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.measurement-footer #measurementMore {
+  grid-column: 11 / 13;
+  justify-self: end;
 }
 
 .table-footer[hidden] {
