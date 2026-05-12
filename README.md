@@ -12,19 +12,21 @@ Browserbasierter EDIFACT-Viewer für MSCONS- und ALOCAT-Dateien im deutschen Str
 - Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code sowie ALOCAT-Reihen nach `ZEU` und `QTY`-Qualifier; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Rechnet EDIFACT-Zeitstempel aus GMT/UTC automatisch in deutsche Marktzeit (`Europe/Berlin`) um, inklusive Sommer- und Winterzeit
 - Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit formatierten `von`/`bis`-Zeitpunkten, `wert` und `status`
-- Der Button `Datei Info` öffnet wichtige Dateieigenschaften und Prüfhinweise als Modal
+- Der Button `Datei Info` öffnet wichtige Dateieigenschaften als Modal
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
-- Exportiert ausgewählte Lastgänge als CSV und die komplette Analyse als JSON
+- Exportiert ausgewählte oder aktuell gefilterte Lastgänge als CSV
 
 ## Lokal öffnen
 
 Die App ist statisch. `index.html` kann direkt im Browser geöffnet werden.
 Zum schnellen Testen liegt unter `examples/mscons-sample.edi` eine kleine MSCONS-Beispieldatei.
 
-## Docker
+## Installation mit Docker
 
 ```bash
+git clone https://github.com/sandavdesigns/edi-viewer.git
+cd edi-viewer
 docker compose up -d
 ```
 
@@ -38,25 +40,46 @@ APP_PORT=8090 docker compose up -d
 
 Ohne Variable nutzt der Stack weiter Port `8080`.
 
-## Portainer
+Aktualisieren auf den neuesten Stand:
 
-Beim Ausrollen über Portainer kann der externe Port über eine Environment Variable gesteuert werden:
+```bash
+git pull
+docker compose up -d
+```
 
-1. In Portainer den Stack öffnen oder neu anlegen.
-2. Im Bereich **Environment variables** eine Variable hinzufügen.
-3. Name: `APP_PORT`
-4. Wert: gewünschter externer Port, z.B. `8090`
-5. Stack deployen oder mit **Update the stack** aktualisieren.
+## Installation mit Portainer
 
-Beispiel:
+Am einfachsten wird das öffentliche GitHub-Repository direkt als Stack verwendet.
+
+1. In Portainer **Stacks** öffnen.
+2. **Add stack** wählen.
+3. Als Name zum Beispiel `edi-viewer` eintragen.
+4. **Repository** auswählen.
+5. Repository URL eintragen: `https://github.com/sandavdesigns/edi-viewer.git`
+6. Compose path: `docker-compose.yml`
+7. Optional unter **Environment variables** den Port setzen:
 
 ```text
 APP_PORT=8090
 ```
 
-Die App ist danach unter `http://SERVER-IP:8090` erreichbar. Der Container selbst hört weiterhin intern auf Port `80`; geändert wird nur der Port auf dem Host.
+8. Stack deployen.
 
-Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Beim Start lädt der Container die statischen App-Dateien aus diesem GitHub-Repository und serviert sie mit nginx. Das ist besonders für Portainer praktisch, weil kein BuildKit/Builder und keine Host-Datei-Mounts benötigt werden.
+Die App ist danach unter `http://SERVER-IP:8080` erreichbar, oder bei gesetztem `APP_PORT` unter dem gewählten Port, zum Beispiel `http://SERVER-IP:8090`.
+
+### Port ändern
+
+```text
+APP_PORT=8090
+```
+
+Der Container selbst hört intern auf Port `80`; `APP_PORT` ändert nur den externen Port auf dem Host.
+
+### Portainer-Hinweis
+
+Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Beim Start lädt der Container die statischen App-Dateien aus diesem GitHub-Repository und serviert sie mit nginx. Dadurch werden in Portainer kein BuildKit/Builder und keine Host-Datei-Mounts benötigt.
+
+Alternativ kann das Repository auch lokal geklont und mit `docker compose up -d` gestartet werden.
 
 ## Grenzen
 
