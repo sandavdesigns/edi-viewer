@@ -29,7 +29,9 @@ const state = {
 const INITIAL_VISIBLE_ROWS = 500;
 const ROW_LOAD_STEP = 500;
 const MEASUREMENT_CHART_WIDTH = 1100;
-const MEASUREMENT_PLOT = { x: 44, y: 18, width: 1018, height: 162 };
+const MEASUREMENT_CHART_HEIGHT = 360;
+const MEASUREMENT_PLOT = { x: 44, y: 28, width: 1018, height: 278 };
+const MEASUREMENT_AXIS_LABEL_Y = MEASUREMENT_CHART_HEIGHT - 30;
 const THEME_STORAGE_KEY = "edi-viewer-theme";
 const MARKET_TIME_ZONE = "Europe/Berlin";
 const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
@@ -1239,7 +1241,7 @@ function includesFilter(value, filter) {
 function renderChart(parsed) {
   const svg = els.chart;
   svg.innerHTML = "";
-  svg.setAttribute("viewBox", state.chartMode === "quantities" ? `0 0 ${MEASUREMENT_CHART_WIDTH} 220` : "0 0 720 300");
+  svg.setAttribute("viewBox", state.chartMode === "quantities" ? `0 0 ${MEASUREMENT_CHART_WIDTH} ${MEASUREMENT_CHART_HEIGHT}` : "0 0 720 300");
 
   if (!parsed) {
     drawEmptyChart(svg);
@@ -1254,7 +1256,7 @@ function renderChart(parsed) {
 }
 
 function drawEmptyChart(svg) {
-  addText(svg, MEASUREMENT_CHART_WIDTH / 2, 145, "Keine Datei geladen", "middle", "var(--muted)", 18, 700);
+  addText(svg, MEASUREMENT_CHART_WIDTH / 2, MEASUREMENT_CHART_HEIGHT / 2, "Keine Datei geladen", "middle", "var(--muted)", 18, 700);
 }
 
 function drawSegmentChart(svg, segments) {
@@ -1322,7 +1324,7 @@ function drawMeasurementChart(svg, rows) {
 
   if (!values.length) {
     addPlotBackground(svg, MEASUREMENT_PLOT.x, MEASUREMENT_PLOT.y, MEASUREMENT_PLOT.width, MEASUREMENT_PLOT.height);
-    addText(svg, MEASUREMENT_CHART_WIDTH / 2, 112, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
+    addText(svg, MEASUREMENT_CHART_WIDTH / 2, MEASUREMENT_PLOT.y + MEASUREMENT_PLOT.height / 2, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
     return;
   }
 
@@ -1358,8 +1360,8 @@ function drawMeasurementChart(svg, rows) {
 
   addText(svg, plot.x - 10, plot.y + 5, compactNumber(max), "end", "var(--text-table)", 11, 700);
   addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "var(--text-table)", 11, 700);
-  addText(svg, plot.x, 206, formatAxisDate(pointsForSeries[0]?.from), "start", "var(--muted)", 11, 650);
-  addText(svg, plot.x + plot.width, 206, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "var(--muted)", 11, 650);
+  addText(svg, plot.x, MEASUREMENT_AXIS_LABEL_Y, formatAxisDate(pointsForSeries[0]?.from), "start", "var(--muted)", 11, 650);
+  addText(svg, plot.x + plot.width, MEASUREMENT_AXIS_LABEL_Y, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "var(--muted)", 11, 650);
 }
 
 function buildStepPath(points) {
