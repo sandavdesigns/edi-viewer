@@ -1468,13 +1468,13 @@ function formatCsvNumber(value) {
 }
 
 function formatAxisDate(value) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length < 8) return value || "";
-  const day = digits.slice(6, 8);
-  const month = digits.slice(4, 6);
-  const hour = digits.slice(8, 10);
-  const minute = digits.slice(10, 12);
-  return hour ? `${day}.${month}. ${hour}:${minute || "00"}` : `${day}.${month}.`;
+  const text = String(value || "");
+  const formatted = formatDateTime(text);
+  const german = formatted.match(/^(\d{2})\.(\d{2})\.\d{4}\s+(\d{2}):(\d{2})/);
+  if (german) return `${german[1]}.${german[2]}. ${german[3]}:${german[4]}`;
+  const dateOnly = formatted.match(/^(\d{2})\.(\d{2})\.\d{4}/);
+  if (dateOnly) return `${dateOnly[1]}.${dateOnly[2]}.`;
+  return text;
 }
 
 function formatDateTime(value) {
