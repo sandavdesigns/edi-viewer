@@ -1033,7 +1033,7 @@ function renderMeasurementTable(parsed) {
     tr.append(selectCell);
     const meteringCell = appendCell(tr, row.meteringPoint, "metering-point-cell");
     meteringCell.dataset.meteringPoint = row.meteringPoint;
-    meteringCell.title = "Zählpunkt anzeigen";
+    meteringCell.title = "Lastgang öffnen";
     appendCell(tr, row.obis, "mono");
     appendCell(tr, formatDateTime(summary.from));
     appendCell(tr, formatDateTime(summary.to));
@@ -2244,7 +2244,7 @@ function wireEvents() {
     }
     const meteringCell = event.target.closest(".metering-point-cell");
     if (meteringCell) {
-      showMeteringPoint(meteringCell.dataset.meteringPoint);
+      openSeriesDetail(row.dataset.key);
       return;
     }
     state.selectedSeriesKey = row.dataset.key || "";
