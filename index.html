@@ -8,9 +8,9 @@
   </head>
   <body>
     <header class="app-header">
-      <div>
-        <p class="eyebrow">EDIFACT Viewer</p>
-        <h1>Deutscher Strom- und Gasmarkt</h1>
+      <div class="brand-block">
+        <p class="eyebrow">EDI View</p>
+        <h1 id="windowTitle">Deutscher Strom- und Gasmarkt</h1>
       </div>
       <div class="header-actions">
         <label class="icon-button" title="EDIFACT-Datei öffnen">
@@ -24,10 +24,10 @@
     </header>
 
     <main class="workspace">
-      <section class="drop-zone" id="dropZone">
+      <section class="drop-zone compact" id="dropZone">
         <div>
           <strong>Datei hier ablegen oder öffnen</strong>
-          <span>Unterstützt EDIFACT/EDI mit UNA, UNB, UNH, UTILMD, MSCONS, INVOIC, REMADV, APERAK, CONTRL und weiteren deutschen Energiemarkt-Nachrichten.</span>
+          <span>EDIFACT/EDI, UTILMD, MSCONS, INVOIC, REMADV, APERAK, CONTRL und weitere deutsche Energiemarkt-Nachrichten.</span>
         </div>
         <label class="primary-button">
           Datei wählen
@@ -35,95 +35,132 @@
         </label>
       </section>
 
-      <section class="summary-grid" aria-live="polite">
-        <article>
-          <span>Datei</span>
-          <strong id="fileName">Noch keine Datei</strong>
-        </article>
-        <article>
-          <span>Nachrichtentyp</span>
-          <strong id="messageType">-</strong>
-        </article>
-        <article>
-          <span>Segmente</span>
-          <strong id="segmentCount">0</strong>
-        </article>
-        <article>
-          <span>Prüfung</span>
-          <strong id="validationState">Bereit</strong>
-        </article>
-      </section>
-
-      <section class="content-grid">
-        <aside class="panel facts-panel">
-          <div class="panel-heading">
-            <h2>Kerndaten</h2>
+      <section class="viewer-shell">
+        <aside class="left-pane">
+          <div class="tab-strip">
+            <button class="tab is-active" type="button">EDI Struktur</button>
+            <button class="tab" type="button">EDI Text</button>
+            <button class="tab" type="button">MSCONS</button>
           </div>
-          <dl id="factsList" class="facts-list"></dl>
+
+          <section class="panel properties-panel" aria-live="polite">
+            <div class="panel-heading">
+              <h2>Eigenschaften</h2>
+              <strong id="validationState">Bereit</strong>
+            </div>
+            <dl id="factsList" class="facts-list property-grid"></dl>
+          </section>
+
+          <section class="panel tree-panel">
+            <div class="panel-heading">
+              <h2>Nachrichtenbaum</h2>
+              <span id="segmentCount">0 Segmente</span>
+            </div>
+            <div id="treeView" class="tree-view"></div>
+          </section>
         </aside>
 
-        <section class="panel chart-panel">
-          <div class="panel-heading">
-            <h2>Struktur</h2>
-            <select id="chartMode" aria-label="Grafikmodus">
-              <option value="segments">Segmentverteilung</option>
-              <option value="quantities">Mengen/Zeitpunkte</option>
-            </select>
-          </div>
-          <div class="chart-wrap">
-            <svg id="chart" role="img" aria-label="EDIFACT-Grafik"></svg>
-          </div>
+        <section class="right-pane">
+          <section class="panel measurement-panel">
+            <div class="panel-heading table-heading">
+              <div>
+                <h2 id="messageType">MSCONS</h2>
+                <span id="fileName" class="subtle">Noch keine Datei</span>
+              </div>
+              <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Messdaten filtern" />
+            </div>
+            <div class="table-wrap dense">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Zählpunkt</th>
+                    <th>OBIS</th>
+                    <th>von</th>
+                    <th>bis</th>
+                    <th>Menge</th>
+                    <th>Minimum</th>
+                    <th>Minimum am</th>
+                    <th>Maximum</th>
+                    <th>Maximum am</th>
+                    <th>Absender</th>
+                    <th>Empfänger</th>
+                    <th>Dritter</th>
+                  </tr>
+                </thead>
+                <tbody id="measurementTable"></tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span id="measurementCount">0 Messzeilen</span>
+              <button id="measurementMore" class="secondary-button" type="button">Mehr laden</button>
+            </div>
+          </section>
+
+          <section class="panel graph-panel">
+            <div class="panel-heading">
+              <h2 id="graphTitle">Lastgang / Mengenverlauf</h2>
+              <select id="chartMode" aria-label="Grafikmodus">
+                <option value="quantities">Mengenverlauf</option>
+                <option value="segments">Segmentverteilung</option>
+              </select>
+            </div>
+            <div class="chart-wrap large">
+              <svg id="chart" role="img" aria-label="EDIFACT-Grafik"></svg>
+            </div>
+          </section>
         </section>
       </section>
 
-      <section class="panel">
-        <div class="panel-heading table-heading">
-          <h2>Geschäftsdaten</h2>
-          <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Geschäftsdaten filtern" />
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Typ</th>
-                <th>Qualifier</th>
-                <th>Wert</th>
-                <th>Zusatz</th>
-                <th>Segment</th>
-              </tr>
-            </thead>
-            <tbody id="businessTable"></tbody>
-          </table>
-        </div>
-        <div class="table-footer">
-          <span id="businessCount">0 Zeilen</span>
-          <button id="businessMore" class="secondary-button" type="button">Mehr laden</button>
-        </div>
-      </section>
+      <section class="lower-grid">
+        <section class="panel">
+          <div class="panel-heading table-heading">
+            <h2>Geschäftsdaten</h2>
+            <input id="businessDetailFilter" type="search" placeholder="Filtern" aria-label="Geschäftsdaten filtern" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Typ</th>
+                  <th>Qualifier</th>
+                  <th>Wert</th>
+                  <th>Zusatz</th>
+                  <th>Segment</th>
+                </tr>
+              </thead>
+              <tbody id="businessTable"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="businessCount">0 Zeilen</span>
+            <button id="businessMore" class="secondary-button" type="button">Mehr laden</button>
+          </div>
+        </section>
 
-      <section class="panel">
-        <div class="panel-heading table-heading">
-          <h2>Segmente</h2>
-          <input id="segmentFilter" type="search" placeholder="UNH, NAD, LOC..." aria-label="Segmente filtern" />
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Tag</th>
-                <th>Beschreibung</th>
-                <th>Elemente</th>
-                <th>Rohsegment</th>
-              </tr>
-            </thead>
-            <tbody id="segmentsTable"></tbody>
-          </table>
-        </div>
-        <div class="table-footer">
-          <span id="segmentsCount">0 Segmente</span>
-          <button id="segmentsMore" class="secondary-button" type="button">Mehr laden</button>
-        </div>
+        <section class="panel">
+          <div class="panel-heading table-heading">
+            <h2>Segmente</h2>
+            <input id="segmentFilter" type="search" placeholder="UNH, NAD, LOC..." aria-label="Segmente filtern" />
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Tag</th>
+                  <th>Beschreibung</th>
+                  <th>Elemente</th>
+                  <th>Rohsegment</th>
+                </tr>
+              </thead>
+              <tbody id="segmentsTable"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="segmentsCount">0 Segmente</span>
+            <button id="segmentsMore" class="secondary-button" type="button">Mehr laden</button>
+          </div>
+        </section>
       </section>
     </main>
 

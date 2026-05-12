@@ -5,7 +5,10 @@ const state = {
   parsed: null,
   segmentFilter: "",
   businessFilter: "",
-  chartMode: "segments",
+  businessDetailFilter: "",
+  chartMode: "quantities",
+  selectedMeasurementIndex: 0,
+  visibleMeasurementRows: 500,
   visibleBusinessRows: 500,
   visibleSegmentRows: 500,
 };
@@ -126,6 +129,13 @@ const els = {
   chartMode: document.querySelector("#chartMode"),
   segmentFilter: document.querySelector("#segmentFilter"),
   businessFilter: document.querySelector("#businessFilter"),
+  businessDetailFilter: document.querySelector("#businessDetailFilter"),
+  treeView: document.querySelector("#treeView"),
+  measurementTable: document.querySelector("#measurementTable"),
+  measurementCount: document.querySelector("#measurementCount"),
+  measurementMore: document.querySelector("#measurementMore"),
+  graphTitle: document.querySelector("#graphTitle"),
+  windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
   businessTable: document.querySelector("#businessTable"),
   businessCount: document.querySelector("#businessCount"),
@@ -167,10 +177,14 @@ function parseEdifact(rawText) {
   for (const row of businessRows) {
     row.searchText = [row.type, row.qualifier, row.value, row.extra, row.segment].join(" ").toLowerCase();
   }
-  const facts = extractFacts(segments, businessRows, chars);
+  const facts = extractFacts(segments, businessRows, chars, rawText.length);
+  const measurementRows = extractMeasurementRows(segments, facts);
+  for (const row of measurementRows) {
+    row.searchText = Object.values(row).join(" ").toLowerCase();
+  }
   const validation = validateInterchange(segments);
 
-  return { chars, segments, businessRows, facts, validation };
+  return { chars, segments, businessRows, measurementRows, facts, validation };
 }
 
 function detectServiceChars(text) {
@@ -301,7 +315,7 @@ function makeRow(type, qualifier, value, extra, segment) {
   };
 }
 
-function extractFacts(segments, rows, chars) {
+function extractFacts(segments, rows, chars, byteSize = 0) {
   const firstUnb = segments.find((segment) => segment.tag === "UNB");
   const firstUnh = segments.find((segment) => segment.tag === "UNH");
   const messageType = firstUnh?.elements[1]?.[0] || "";
@@ -315,6 +329,7 @@ function extractFacts(segments, rows, chars) {
   return {
     messageType,
     messageDescription: describeMessageType(messageType),
+    byteSize,
     version,
     sender,
     receiver,
@@ -325,6 +340,79 @@ function extractFacts(segments, rows, chars) {
     quantities,
     amounts,
   };
+}
+
+function extractMeasurementRows(segments, facts) {
+  const rows = [];
+  const context = {
+    meteringPoint: "",
+    obis: "",
+    start: "",
+    end: "",
+    thirdParty: "",
+  };
+
+  for (const segment of segments) {
+    const flat = segment.elements.flat().filter(Boolean);
+    const raw = segment.raw;
+    const obisMatch = raw.match(/\b\d-\d:\d+\.\d+\.\d+\b/);
+    if (obisMatch) context.obis = obisMatch[0];
+
+    if (segment.tag === "LOC") {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[0]?.[1] || segment.elements[1]?.[0] || "";
+      if (["172", "Z16", "Z18"].includes(qualifier) && value) context.meteringPoint = value;
+    }
+
+    if (segment.tag === "RFF") {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[0]?.[1] || "";
+      if (["Z13", "Z14", "MG"].includes(qualifier) && value && !context.meteringPoint) context.meteringPoint = value;
+    }
+
+    if (segment.tag === "DTM") {
+      const qualifier = segment.elements[0]?.[0] || "";
+      const value = segment.elements[0]?.[1] || "";
+      const format = segment.elements[0]?.[2] || "";
+      const formatted = formatEdifactDate(value, format);
+      if (["163", "324", "157"].includes(qualifier)) context.start = formatted;
+      if (["164", "158"].includes(qualifier)) context.end = formatted;
+      if (format === "718" && value.includes("-")) {
+        const [start, end] = formatted.split(" bis ");
+        context.start = start || context.start;
+        context.end = end || context.end;
+      }
+    }
+
+    if (segment.tag !== "QTY" && segment.tag !== "MEA") continue;
+
+    const qualifier = segment.elements[0]?.[0] || "";
+    const value = Number(normalizeDecimal(segment.elements[0]?.[1] || segment.elements[2]?.[0] || ""));
+    if (!Number.isFinite(value)) continue;
+
+    const unit = segment.elements[0]?.[2] || "";
+    const minimum = Math.min(0, value);
+    const maximum = Math.max(0, value);
+    rows.push({
+      index: rows.length,
+      meteringPoint: context.meteringPoint || "-",
+      obis: context.obis || qualifier || "-",
+      from: context.start || "-",
+      to: context.end || "-",
+      quantity: value,
+      unit,
+      minimum,
+      minimumAt: context.start || "-",
+      maximum,
+      maximumAt: context.end || context.start || "-",
+      sender: facts.sender || "-",
+      receiver: facts.receiver || "-",
+      thirdParty: context.thirdParty || "",
+      segment: `${segment.index} ${segment.tag}`,
+    });
+  }
+
+  return rows;
 }
 
 function validateInterchange(segments) {
@@ -380,13 +468,16 @@ function normalizeDecimal(value) {
 
 function render() {
   const parsed = state.parsed;
+  els.windowTitle.textContent = state.fileName || "Deutscher Strom- und Gasmarkt";
   els.fileName.textContent = state.fileName || "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
-  els.segmentCount.textContent = parsed ? String(parsed.segments.length) : "0";
+  els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
   els.validationState.textContent = parsed ? parsed.validation.message : "Bereit";
   els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
   renderFacts(parsed);
+  renderTree(parsed);
+  renderMeasurementTable(parsed);
   renderBusinessTable(parsed);
   renderSegmentsTable(parsed);
   renderChart(parsed);
@@ -400,6 +491,8 @@ function renderFacts(parsed) {
   }
 
   const facts = [
+    ["Dateiname", state.fileName || "-"],
+    ["Dateigröße", formatBytes(parsed.facts.byteSize)],
     ["Nachricht", parsed.facts.messageDescription],
     ["Version", parsed.facts.version || "-"],
     ["Absender", parsed.facts.sender || "-"],
@@ -407,12 +500,85 @@ function renderFacts(parsed) {
     ["Interchange", parsed.facts.interchangeRef || "-"],
     ["Syntax", parsed.facts.syntax || "-"],
     ["Trennzeichen", parsed.facts.separators],
+    ["Messzeilen", String(parsed.measurementRows.length)],
     ["Extrahiert", `${parsed.facts.references} Referenzen · ${parsed.facts.quantities} Mengen · ${parsed.facts.amounts} Beträge`],
   ];
 
   for (const [label, value] of facts) {
     els.factsList.append(factNode(label, value));
   }
+}
+
+function renderTree(parsed) {
+  els.treeView.innerHTML = "";
+  if (!parsed) {
+    const empty = document.createElement("div");
+    empty.className = "tree-node";
+    empty.style.setProperty("--level", "0");
+    empty.innerHTML = '<span class="tree-icon">•</span><span class="tree-label">Noch keine Datei geladen</span>';
+    els.treeView.append(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", true);
+  fragment.append(root);
+
+  const groups = groupMeasurements(parsed.measurementRows);
+  for (const [meteringPoint, rows] of groups) {
+    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} Werte`, false));
+    const byObis = groupBy(rows, (row) => row.obis);
+    for (const [obis, obisRows] of byObis) {
+      fragment.append(treeNode(2, "▸", `${obis} - Menge ${formatNumber(sumRows(obisRows))}`, obisRows[0]?.index === state.selectedMeasurementIndex));
+    }
+  }
+
+  if (!groups.size) {
+    for (const segment of parsed.segments.slice(0, 300)) {
+      fragment.append(treeNode(1, "•", `${segment.index} ${segment.tag} - ${segment.label}`, false));
+    }
+  }
+
+  els.treeView.append(fragment);
+}
+
+function treeNode(level, icon, label, selected) {
+  const node = document.createElement("div");
+  node.className = `tree-node${selected ? " is-selected" : ""}`;
+  node.style.setProperty("--level", String(level));
+  const iconNode = document.createElement("span");
+  iconNode.className = "tree-icon";
+  iconNode.textContent = icon;
+  const labelNode = document.createElement("span");
+  labelNode.className = "tree-label";
+  labelNode.textContent = label;
+  node.append(iconNode, labelNode);
+  return node;
+}
+
+function groupMeasurements(rows) {
+  return groupBy(rows.slice(0, 500), (row) => row.meteringPoint || "-");
+}
+
+function groupBy(rows, keyFn) {
+  const map = new Map();
+  for (const row of rows) {
+    const key = keyFn(row);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  }
+  return map;
+}
+
+function sumRows(rows) {
+  return rows.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "-";
+  if (bytes < 1024) return `${bytes} Bytes`;
+  if (bytes < 1024 * 1024) return `${formatNumber(bytes / 1024)} KB`;
+  return `${formatNumber(bytes / 1024 / 1024)} MB`;
 }
 
 function factNode(label, value) {
@@ -443,6 +609,39 @@ function renderBusinessTable(parsed) {
     fragment.append(tr);
   }
   els.businessTable.append(fragment);
+}
+
+function renderMeasurementTable(parsed) {
+  els.measurementTable.innerHTML = "";
+  const rows = getFilteredMeasurementRows(parsed);
+  const visibleRows = rows.slice(0, state.visibleMeasurementRows);
+  updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Messzeilen");
+  if (!rows.length) return appendEmpty(els.measurementTable, 12);
+
+  const selectedExists = visibleRows.some((row) => row.index === state.selectedMeasurementIndex);
+  if (!selectedExists && visibleRows[0]) state.selectedMeasurementIndex = visibleRows[0].index;
+
+  const fragment = document.createDocumentFragment();
+  for (const row of visibleRows) {
+    const tr = document.createElement("tr");
+    tr.dataset.index = String(row.index);
+    if (row.index === state.selectedMeasurementIndex) tr.className = "is-selected";
+    appendCell(tr, row.meteringPoint);
+    appendCell(tr, row.obis, "mono");
+    appendCell(tr, row.from);
+    appendCell(tr, row.to);
+    appendCell(tr, formatNumber(row.quantity), "num");
+    appendCell(tr, formatNumber(row.minimum), "num");
+    appendCell(tr, row.minimumAt);
+    appendCell(tr, formatNumber(row.maximum), "num");
+    appendCell(tr, row.maximumAt);
+    appendCell(tr, row.sender, "mono");
+    appendCell(tr, row.receiver, "mono");
+    appendCell(tr, row.thirdParty);
+    fragment.append(tr);
+  }
+  els.measurementTable.append(fragment);
+  updateGraphTitle(parsed);
 }
 
 function renderSegmentsTable(parsed) {
@@ -477,8 +676,10 @@ function appendCell(row, text, className = "") {
   row.append(td);
 }
 
-function appendEmpty(target) {
-  target.append(els.emptyRowTemplate.content.firstElementChild.cloneNode(true));
+function appendEmpty(target, colspan = 5) {
+  const row = els.emptyRowTemplate.content.firstElementChild.cloneNode(true);
+  row.firstElementChild.colSpan = colspan;
+  target.append(row);
 }
 
 function updateTableFooter(countEl, moreButton, visible, total, label) {
@@ -487,11 +688,15 @@ function updateTableFooter(countEl, moreButton, visible, total, label) {
 }
 
 function getFilteredBusinessRows(parsed) {
-  return parsed?.businessRows.filter((row) => includesFilter(row, state.businessFilter)) || [];
+  return parsed?.businessRows.filter((row) => includesFilter(row, state.businessDetailFilter)) || [];
 }
 
 function getFilteredSegments(parsed) {
   return parsed?.segments.filter((segment) => includesFilter(segment, state.segmentFilter)) || [];
+}
+
+function getFilteredMeasurementRows(parsed) {
+  return parsed?.measurementRows.filter((row) => includesFilter(row, state.businessFilter)) || [];
 }
 
 function includesFilter(value, filter) {
@@ -510,7 +715,7 @@ function renderChart(parsed) {
   }
 
   if (state.chartMode === "quantities") {
-    drawQuantityChart(svg, parsed.businessRows);
+    drawMeasurementChart(svg, getFilteredMeasurementRows(parsed));
   } else {
     drawSegmentChart(svg, parsed.segments);
   }
@@ -578,13 +783,60 @@ function drawQuantityChart(svg, rows) {
   });
 }
 
-function addRect(svg, x, y, width, height, fill) {
+function drawMeasurementChart(svg, rows) {
+  const visibleRows = rows.slice(0, Math.max(state.visibleMeasurementRows, 1));
+  const values = visibleRows.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
+
+  if (!values.length) {
+    addPlotBackground(svg);
+    addText(svg, 360, 145, "Keine Mengenwerte gefunden", "middle", "var(--muted)", 18, 700);
+    return;
+  }
+
+  addPlotBackground(svg);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const points = values.map((value, index) => {
+    const x = 38 + (index / Math.max(values.length - 1, 1)) * 650;
+    const y = 260 - ((value - min) / range) * 220;
+    return [x, y, value];
+  });
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", points.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" "));
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "var(--accent-2)");
+  path.setAttribute("stroke-width", "2");
+  svg.append(path);
+
+  for (const [x, y] of points.slice(0, 220)) {
+    addCircle(svg, x, y, 2.5, "var(--accent-2)");
+  }
+
+  addText(svg, 34, 36, compactNumber(max), "end", "#26312c", 11, 700);
+  addText(svg, 34, 263, compactNumber(min), "end", "#26312c", 11, 700);
+}
+
+function addPlotBackground(svg) {
+  addRect(svg, 38, 30, 650, 235, "var(--plot)", 0);
+  for (let i = 0; i <= 10; i += 1) {
+    const y = 30 + i * 23.5;
+    addLine(svg, 38, y, 688, y, i % 2 ? "#d5ddc8" : "#bccab5");
+  }
+  for (let i = 0; i <= 12; i += 1) {
+    const x = 38 + i * (650 / 12);
+    addLine(svg, x, 30, x, 265, "#d0d8c4");
+  }
+}
+
+function addRect(svg, x, y, width, height, fill, rx = 4) {
   const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   rect.setAttribute("x", x);
   rect.setAttribute("y", y);
   rect.setAttribute("width", width);
   rect.setAttribute("height", height);
-  rect.setAttribute("rx", 4);
+  rect.setAttribute("rx", rx);
   rect.setAttribute("fill", fill);
   svg.append(rect);
 }
@@ -625,6 +877,15 @@ function compactNumber(value) {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(value);
 }
 
+function formatNumber(value) {
+  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 }).format(Number(value) || 0);
+}
+
+function updateGraphTitle(parsed) {
+  const row = parsed?.measurementRows.find((item) => item.index === state.selectedMeasurementIndex);
+  els.graphTitle.textContent = row ? `${row.meteringPoint} - ${row.obis}: ${row.from} - ${row.to}` : "Lastgang / Mengenverlauf";
+}
+
 function download(filename, mimeType, content) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -661,6 +922,8 @@ async function handleFile(file) {
 }
 
 function resetVisibleRows() {
+  state.selectedMeasurementIndex = 0;
+  state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
   state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
   state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
 }
@@ -679,6 +942,13 @@ function wireEvents() {
   });
   els.businessFilter.addEventListener("input", (event) => {
     state.businessFilter = event.target.value;
+    state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+    renderMeasurementTable(state.parsed);
+    renderChart(state.parsed);
+    renderTree(state.parsed);
+  });
+  els.businessDetailFilter.addEventListener("input", (event) => {
+    state.businessDetailFilter = event.target.value;
     state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
     renderBusinessTable(state.parsed);
   });
@@ -708,6 +978,21 @@ function wireEvents() {
   els.businessMore.addEventListener("click", () => {
     state.visibleBusinessRows += ROW_LOAD_STEP;
     renderBusinessTable(state.parsed);
+  });
+
+  els.measurementMore.addEventListener("click", () => {
+    state.visibleMeasurementRows += ROW_LOAD_STEP;
+    renderMeasurementTable(state.parsed);
+    renderChart(state.parsed);
+  });
+
+  els.measurementTable.addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-index]");
+    if (!row) return;
+    state.selectedMeasurementIndex = Number(row.dataset.index) || 0;
+    renderMeasurementTable(state.parsed);
+    renderTree(state.parsed);
+    renderChart(state.parsed);
   });
 
   els.segmentsMore.addEventListener("click", () => {
