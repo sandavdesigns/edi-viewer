@@ -1169,14 +1169,7 @@ function updateTableFooter(countEl, moreButton, visible, total, label) {
 
 function updateMeasurementFooter(visible, rows) {
   const total = rows.length;
-  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
-  els.measurementCount.innerHTML = "";
-  const count = document.createElement("span");
-  count.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
-  const totalNode = document.createElement("strong");
-  totalNode.className = "footer-sum";
-  totalNode.textContent = `Summe Menge: ${formatNumber(sum)}`;
-  els.measurementCount.append(count, totalNode);
+  els.measurementCount.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
   els.measurementMore.toggleAttribute("hidden", visible >= total);
 }
 

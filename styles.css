@@ -528,9 +528,6 @@ tr.is-selected td {
 }
 
 .summary-row td {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
   border-top: 2px solid var(--line-strong);
   background: var(--surface-soft);
   color: var(--ink);
@@ -619,19 +616,6 @@ td.num {
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
-}
-
-.table-footer > span,
-#measurementCount {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.footer-sum {
-  color: var(--ink);
-  font-weight: 840;
 }
 
 .table-footer[hidden] {
