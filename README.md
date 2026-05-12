@@ -36,7 +36,25 @@ Der externe Port kann per Environment Variable gesetzt werden:
 APP_PORT=8090 docker compose up -d
 ```
 
-In Portainer unter **Stack → Environment variables** z.B. `APP_PORT=8090` eintragen. Ohne Variable nutzt der Stack weiter Port `8080`.
+Ohne Variable nutzt der Stack weiter Port `8080`.
+
+## Portainer
+
+Beim Ausrollen über Portainer kann der externe Port über eine Environment Variable gesteuert werden:
+
+1. In Portainer den Stack öffnen oder neu anlegen.
+2. Im Bereich **Environment variables** eine Variable hinzufügen.
+3. Name: `APP_PORT`
+4. Wert: gewünschter externer Port, z.B. `8090`
+5. Stack deployen oder mit **Update the stack** aktualisieren.
+
+Beispiel:
+
+```text
+APP_PORT=8090
+```
+
+Die App ist danach unter `http://SERVER-IP:8090` erreichbar. Der Container selbst hört weiterhin intern auf Port `80`; geändert wird nur der Port auf dem Host.
 
 Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Beim Start lädt der Container die statischen App-Dateien aus diesem GitHub-Repository und serviert sie mit nginx. Das ist besonders für Portainer praktisch, weil kein BuildKit/Builder und keine Host-Datei-Mounts benötigt werden.
 
