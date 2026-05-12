@@ -27,6 +27,8 @@ const INITIAL_VISIBLE_ROWS = 500;
 const ROW_LOAD_STEP = 500;
 const MEASUREMENT_CHART_WIDTH = 1100;
 const MEASUREMENT_PLOT = { x: 44, y: 18, width: 1018, height: 162 };
+const THEME_STORAGE_KEY = "edi-viewer-theme";
+const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -139,6 +141,7 @@ const els = {
   factsList: document.querySelector("#factsList"),
   chart: document.querySelector("#chart"),
   chartMode: document.querySelector("#chartMode"),
+  themeMode: document.querySelector("#themeMode"),
   segmentFilter: document.querySelector("#segmentFilter"),
   businessFilter: document.querySelector("#businessFilter"),
   meteringPointFilter: document.querySelector("#meteringPointFilter"),
@@ -1014,9 +1017,9 @@ function drawSegmentChart(svg, segments) {
   counts.forEach(([tag, count], index) => {
     const y = 22 + index * 26;
     const width = Math.max(4, (count / max) * 510);
-    addText(svg, 24, y + 14, tag, "start", "#26312c", 13, 800);
+    addText(svg, 24, y + 14, tag, "start", "var(--text-table)", 13, 800);
     addRect(svg, 92, y, width, barHeight, index % 2 ? "var(--accent)" : "var(--accent-2)");
-    addText(svg, 612, y + 14, String(count), "end", "#26312c", 13, 750);
+    addText(svg, 612, y + 14, String(count), "end", "var(--text-table)", 13, 750);
   });
 }
 
@@ -1041,8 +1044,8 @@ function drawQuantityChart(svg, rows) {
     return [x, y, value];
   });
 
-  addLine(svg, 44, 250, 676, 250, "#c5d0c9");
-  addLine(svg, 44, 46, 44, 250, "#c5d0c9");
+  addLine(svg, 44, 250, 676, 250, "var(--line-strong)");
+  addLine(svg, 44, 46, 44, 250, "var(--line-strong)");
 
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", points.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" "));
@@ -1053,7 +1056,7 @@ function drawQuantityChart(svg, rows) {
 
   points.forEach(([x, y, value]) => {
     addCircle(svg, x, y, 4, "var(--accent-2)");
-    addText(svg, x, y - 10, compactNumber(value), "middle", "#26312c", 11, 700);
+    addText(svg, x, y - 10, compactNumber(value), "middle", "var(--text-table)", 11, 700);
   });
 }
 
@@ -1082,7 +1085,7 @@ function drawMeasurementChart(svg, rows) {
   const linePath = buildStepPath(points);
   const areaPath = `${linePath} L ${points[points.length - 1][0]} ${baseline} L ${points[0][0]} ${baseline} Z`;
 
-  addPath(svg, areaPath, "rgba(47, 143, 47, 0.11)", "none", 0);
+  addPath(svg, areaPath, "var(--chart-fill)", "none", 0);
   addPath(svg, linePath, "none", "var(--accent-2)", 1.8);
 
   const minPoint = points.find((point) => point[2] === min);
@@ -1098,10 +1101,10 @@ function drawMeasurementChart(svg, rows) {
     addText(svg, Math.min(selectedPoint[0] + 8, plot.x + plot.width), Math.max(selectedPoint[1] - 10, plot.y + 12), compactNumber(selectedValue.quantity), "end", "var(--danger)", 11, 800);
   }
 
-  addText(svg, plot.x - 10, plot.y + 5, compactNumber(max), "end", "#26312c", 11, 700);
-  addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "#26312c", 11, 700);
-  addText(svg, plot.x, 206, formatAxisDate(pointsForSeries[0]?.from), "start", "#526059", 11, 650);
-  addText(svg, plot.x + plot.width, 206, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "#526059", 11, 650);
+  addText(svg, plot.x - 10, plot.y + 5, compactNumber(max), "end", "var(--text-table)", 11, 700);
+  addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "var(--text-table)", 11, 700);
+  addText(svg, plot.x, 206, formatAxisDate(pointsForSeries[0]?.from), "start", "var(--muted)", 11, 650);
+  addText(svg, plot.x + plot.width, 206, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "var(--muted)", 11, 650);
 }
 
 function buildStepPath(points) {
@@ -1117,13 +1120,13 @@ function addPlotBackground(svg, x, y, width, height) {
   addRect(svg, x, y, width, height, "var(--plot)", 0);
   for (let i = 0; i <= 4; i += 1) {
     const lineY = y + i * (height / 4);
-    addLine(svg, x, lineY, x + width, lineY, i === 4 ? "#aebdad" : "#d4ddcf", i === 4 ? 1.2 : 0.8);
+    addLine(svg, x, lineY, x + width, lineY, i === 4 ? "var(--line-strong)" : "var(--line)", i === 4 ? 1.2 : 0.8);
   }
   for (let i = 0; i <= 8; i += 1) {
     const lineX = x + i * (width / 8);
-    addLine(svg, lineX, y, lineX, y + height, "#dce3d7", 0.8);
+    addLine(svg, lineX, y, lineX, y + height, "var(--line)", 0.8);
   }
-  addLine(svg, x, y, x, y + height, "#aebdad", 1.2);
+  addLine(svg, x, y, x, y + height, "var(--line-strong)", 1.2);
 }
 
 function addPath(svg, d, fill, stroke, strokeWidth) {
@@ -1586,6 +1589,14 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
+  els.themeMode.addEventListener("change", (event) => {
+    setThemeMode(event.target.value);
+  });
+
+  systemDarkMode?.addEventListener("change", () => {
+    if (els.themeMode.value === "auto") applyThemeMode("auto");
+  });
+
   els.infoOpen.addEventListener("click", () => {
     if (typeof els.infoDialog.showModal === "function") {
       els.infoDialog.showModal();
@@ -1760,5 +1771,38 @@ function baseName(name) {
   return (name || "edifact").replace(/\.[^.]+$/, "");
 }
 
+function initTheme() {
+  const saved = readStoredTheme();
+  els.themeMode.value = ["auto", "light", "dark"].includes(saved) ? saved : "auto";
+  applyThemeMode(els.themeMode.value);
+}
+
+function setThemeMode(mode) {
+  const normalized = ["auto", "light", "dark"].includes(mode) ? mode : "auto";
+  els.themeMode.value = normalized;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, normalized);
+  } catch {
+    // Ignore storage errors; the selected theme still applies for this session.
+  }
+  applyThemeMode(normalized);
+}
+
+function readStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY);
+  } catch {
+    return "auto";
+  }
+}
+
+function applyThemeMode(mode) {
+  const effectiveTheme = mode === "auto" ? (systemDarkMode?.matches ? "dark" : "light") : mode;
+  document.body.dataset.theme = effectiveTheme;
+  document.body.dataset.themeMode = mode;
+  renderChart(state.parsed);
+}
+
+initTheme();
 wireEvents();
 render();
