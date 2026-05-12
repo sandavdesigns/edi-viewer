@@ -11,6 +11,7 @@ const state = {
   measurementView: "series",
   selectedMeteringPoint: "",
   selectedSeriesKey: "",
+  selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
   visibleMeasurementRows: 500,
   visiblePointRows: 500,
@@ -798,8 +799,11 @@ function renderMeasurementPointTable(parsed) {
   if (!points.length) return appendEmpty(els.measurementTable, 12);
 
   const fragment = document.createDocumentFragment();
-  for (const point of visibleRows) {
+  for (let index = 0; index < visibleRows.length; index += 1) {
+    const point = visibleRows[index];
     const tr = document.createElement("tr");
+    tr.dataset.pointIndex = String(index);
+    if (state.selectedPointIndex === index) tr.className = "is-selected";
     appendCell(tr, "");
     appendCell(tr, formatDateTime(point.from));
     appendCell(tr, point.obis, "mono");
@@ -990,12 +994,12 @@ function drawMeasurementChart(svg, rows) {
   const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
 
   if (!values.length) {
-    addPlotBackground(svg, 58, 22, 612, 156);
+    addPlotBackground(svg, 34, 18, 672, 162);
     addText(svg, 360, 112, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
     return;
   }
 
-  const plot = { x: 58, y: 22, width: 612, height: 156 };
+  const plot = { x: 34, y: 18, width: 672, height: 162 };
   addPlotBackground(svg, plot.x, plot.y, plot.width, plot.height);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
@@ -1017,10 +1021,18 @@ function drawMeasurementChart(svg, rows) {
   if (minPoint) addCircle(svg, minPoint[0], minPoint[1], 3, "var(--accent-dark)");
   if (maxPoint) addCircle(svg, maxPoint[0], maxPoint[1], 3, "var(--accent-dark)");
 
+  if (Number.isInteger(state.selectedPointIndex) && points[state.selectedPointIndex]) {
+    const selectedPoint = points[state.selectedPointIndex];
+    const selectedValue = pointsForSeries[state.selectedPointIndex];
+    addLine(svg, selectedPoint[0], plot.y, selectedPoint[0], baseline, "var(--danger)", 1.4);
+    addCircle(svg, selectedPoint[0], selectedPoint[1], 5, "var(--danger)");
+    addText(svg, Math.min(selectedPoint[0] + 8, plot.x + plot.width), Math.max(selectedPoint[1] - 10, plot.y + 12), compactNumber(selectedValue.quantity), "end", "var(--danger)", 11, 800);
+  }
+
   addText(svg, plot.x - 10, plot.y + 5, compactNumber(max), "end", "#26312c", 11, 700);
   addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "#26312c", 11, 700);
-  addText(svg, plot.x, 204, formatAxisDate(pointsForSeries[0]?.from), "start", "#526059", 11, 650);
-  addText(svg, plot.x + plot.width, 204, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "#526059", 11, 650);
+  addText(svg, plot.x, 206, formatAxisDate(pointsForSeries[0]?.from), "start", "#526059", 11, 650);
+  addText(svg, plot.x + plot.width, 206, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "#526059", 11, 650);
 }
 
 function buildStepPath(points) {
@@ -1234,6 +1246,7 @@ async function readEdifactFile(file) {
 
 function resetVisibleRows() {
   state.selectedSeriesKey = "";
+  state.selectedPointIndex = null;
   state.selectedMeteringPoint = "";
   state.selectedSeriesKeys = new Set();
   state.measurementView = "series";
@@ -1250,6 +1263,7 @@ function nextFrame() {
 function openSeriesDetail(seriesKey) {
   if (!seriesKey) return;
   state.selectedSeriesKey = seriesKey;
+  state.selectedPointIndex = null;
   state.measurementView = "points";
   state.visiblePointRows = INITIAL_VISIBLE_ROWS;
   renderMeasurementTable(state.parsed);
@@ -1259,6 +1273,7 @@ function openSeriesDetail(seriesKey) {
 
 function openSeriesList() {
   state.measurementView = "series";
+  state.selectedPointIndex = null;
   renderMeasurementTable(state.parsed);
   renderTree(state.parsed);
   renderChart(state.parsed);
@@ -1267,6 +1282,7 @@ function openSeriesList() {
 function showMeteringPoint(meteringPoint) {
   state.selectedMeteringPoint = meteringPoint || "";
   state.measurementView = "series";
+  state.selectedPointIndex = null;
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
   renderMeteringPointFilter(state.parsed);
   renderMeasurementTable(state.parsed);
@@ -1402,6 +1418,14 @@ function wireEvents() {
   });
 
   els.measurementTable.addEventListener("click", (event) => {
+    const pointRow = event.target.closest("tr[data-point-index]");
+    if (pointRow) {
+      state.selectedPointIndex = Number(pointRow.dataset.pointIndex);
+      renderMeasurementTable(state.parsed);
+      renderChart(state.parsed);
+      return;
+    }
+
     const row = event.target.closest("tr[data-key]");
     if (!row) return;
     if (event.target.classList.contains("row-check")) {
@@ -1419,6 +1443,7 @@ function wireEvents() {
       return;
     }
     state.selectedSeriesKey = row.dataset.key || "";
+    state.selectedPointIndex = null;
     state.measurementView = "series";
     renderMeasurementTable(state.parsed);
     renderTree(state.parsed);
