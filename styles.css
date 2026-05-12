@@ -390,15 +390,6 @@ h2 {
   width: 138px;
 }
 
-#compareDocument {
-  width: min(260px, 28vw);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 6px 9px;
-  background: var(--input-bg);
-  color: var(--ink);
-}
-
 .facts-list {
   display: grid;
   gap: 0;
@@ -451,8 +442,13 @@ h2 {
   max-height: 430px;
 }
 
+.measurement-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
 .measurement-panel .table-wrap {
-  height: calc(100% - 97px);
+  height: auto;
   max-height: none;
 }
 
@@ -586,6 +582,7 @@ td.num {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 auto;
   gap: 12px;
   min-height: 52px;
   padding: 9px 12px;

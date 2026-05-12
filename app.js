@@ -16,7 +16,6 @@ const state = {
   selectedObis: "",
   dateFrom: "",
   dateTo: "",
-  compareDocumentId: "",
   selectedSeriesKey: "",
   selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
@@ -172,7 +171,6 @@ const els = {
   validationSummary: document.querySelector("#validationSummary"),
   validationList: document.querySelector("#validationList"),
   seriesInsights: document.querySelector("#seriesInsights"),
-  compareDocument: document.querySelector("#compareDocument"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
@@ -589,7 +587,6 @@ function render() {
 
   renderFacts(parsed);
   renderDocumentTabs();
-  renderCompareOptions();
   renderMeteringPointFilter(parsed);
   renderObisFilter(parsed);
   renderTree(parsed);
@@ -631,27 +628,6 @@ function renderDocumentTabs() {
     fragment.append(tab);
   }
   els.documentTabs.append(fragment);
-}
-
-function renderCompareOptions() {
-  const previous = state.compareDocumentId;
-  els.compareDocument.innerHTML = "";
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = "Kein Vergleich";
-  els.compareDocument.append(none);
-
-  for (const documentState of state.documents) {
-    if (documentState.id === state.activeDocumentId) continue;
-    const option = document.createElement("option");
-    option.value = String(documentState.id);
-    option.textContent = documentState.fileName;
-    els.compareDocument.append(option);
-  }
-
-  const values = [...els.compareDocument.options].map((option) => option.value);
-  state.compareDocumentId = values.includes(previous) ? previous : "";
-  els.compareDocument.value = state.compareDocumentId;
 }
 
 function renderFacts(parsed) {
@@ -996,7 +972,7 @@ function appendEmpty(target, colspan = 5) {
 
 function updateTableFooter(countEl, moreButton, visible, total, label) {
   countEl.textContent = total ? `${visible} von ${total} ${label}` : `0 ${label}`;
-  moreButton.hidden = visible >= total;
+  moreButton.toggleAttribute("hidden", visible >= total);
 }
 
 function getFilteredBusinessRows(parsed) {
@@ -1178,20 +1154,6 @@ function drawMeasurementChart(svg, rows) {
 
   addPath(svg, areaPath, "var(--chart-fill)", "none", 0);
   addPath(svg, linePath, "none", "var(--accent-2)", 1.8);
-
-  const compareSeries = getCompareSeries(selectedSeries);
-  if (compareSeries) {
-    const comparePoints = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom, "start"), parseDateInput(state.dateTo, "end"));
-    const compareValues = comparePoints.map((point) => Number(point.quantity)).filter((value) => Number.isFinite(value));
-    if (compareValues.length) {
-      const comparePath = buildStepPath(compareValues.map((value, index) => {
-        const x = plot.x + (index / Math.max(compareValues.length - 1, 1)) * plot.width;
-        const y = plot.y + plot.height - ((value - min) / range) * plot.height;
-        return [x, y, value];
-      }));
-      addPath(svg, comparePath, "none", "var(--accent)", 1.3, "6 4");
-    }
-  }
 
   const minPoint = points.find((point) => point[2] === min);
   const maxPoint = points.find((point) => point[2] === max);
@@ -1388,7 +1350,6 @@ function renderSeriesInsights(parsed) {
   appendInsight("Lücken", String(analysis.gaps.length));
   appendInsight("Ausreißer", String(analysis.outliers.length));
   appendInsight("Status", formatStatusSummary(points));
-  appendInsight("Vergleich", compareSummary(series));
 }
 
 function appendInsight(label, value) {
@@ -1413,32 +1374,6 @@ function formatStatusSummary(points) {
     .slice(0, 3)
     .map(([status, count]) => `${status}: ${count}`)
     .join(", ");
-}
-
-function getCompareSeries(series) {
-  if (!series || !state.compareDocumentId) return null;
-  const documentState = state.documents.find((item) => String(item.id) === String(state.compareDocumentId));
-  return documentState?.parsed?.measurementSeries.find((row) => row.key === series.key) || null;
-}
-
-function compareSummary(series) {
-  const compareSeries = getCompareSeries(series);
-  if (!compareSeries) return state.compareDocumentId ? "nicht gefunden" : "-";
-  const current = getFilteredSeriesPoints(series);
-  const other = filterPointsByRange(compareSeries.points || [], parseDateInput(state.dateFrom, "start"), parseDateInput(state.dateTo, "end"));
-  const currentMap = new Map(current.map((point) => [`${point.from || ""}||${point.to || ""}`, Number(point.quantity) || 0]));
-  let changed = 0;
-  let missing = 0;
-  for (const point of other) {
-    const key = `${point.from || ""}||${point.to || ""}`;
-    if (!currentMap.has(key)) {
-      missing += 1;
-    } else if (Math.abs((Number(point.quantity) || 0) - currentMap.get(key)) > 0.000001) {
-      changed += 1;
-    }
-  }
-  const newValues = current.filter((point) => !other.some((otherPoint) => `${otherPoint.from || ""}||${otherPoint.to || ""}` === `${point.from || ""}||${point.to || ""}`)).length;
-  return `${changed} geändert, ${missing} fehlen, ${newValues} neu`;
 }
 
 function analyzeSeries(series) {
@@ -1768,7 +1703,6 @@ function defaultDocumentView() {
     selectedObis: "",
     dateFrom: "",
     dateTo: "",
-    compareDocumentId: "",
     selectedSeriesKey: "",
     selectedPointIndex: null,
     selectedSeriesKeys: [],
@@ -1790,7 +1724,6 @@ function currentDocumentView() {
     selectedObis: state.selectedObis,
     dateFrom: state.dateFrom,
     dateTo: state.dateTo,
-    compareDocumentId: state.compareDocumentId,
     selectedSeriesKey: state.selectedSeriesKey,
     selectedPointIndex: state.selectedPointIndex,
     selectedSeriesKeys: [...state.selectedSeriesKeys],
@@ -1817,7 +1750,6 @@ function applyDocumentView(view) {
     selectedObis: view.selectedObis || "",
     dateFrom: view.dateFrom || "",
     dateTo: view.dateTo || "",
-    compareDocumentId: view.compareDocumentId || "",
     selectedSeriesKey: view.selectedSeriesKey || "",
     selectedPointIndex: Number.isInteger(view.selectedPointIndex) ? view.selectedPointIndex : null,
     selectedSeriesKeys: new Set(view.selectedSeriesKeys || []),
@@ -1962,12 +1894,6 @@ function wireEvents() {
   });
   els.chartMode?.addEventListener("change", (event) => {
     state.chartMode = event.target.value;
-    renderChart(state.parsed);
-  });
-
-  els.compareDocument.addEventListener("change", (event) => {
-    state.compareDocumentId = event.target.value;
-    renderSeriesInsights(state.parsed);
     renderChart(state.parsed);
   });
 
