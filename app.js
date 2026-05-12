@@ -575,10 +575,23 @@ function normalizeDecimal(value) {
   return String(value || "").replace(",", ".");
 }
 
+function shortFileName(name) {
+  const clean = String(name || "Datei").replace(/\.[^.]+$/, "");
+  if (clean.length <= 34) return clean;
+  return `${clean.slice(0, 15)}...${clean.slice(-14)}`;
+}
+
+function formatDocumentSubtitle(parsed) {
+  const sender = parsed?.facts?.sender || "";
+  const receiver = parsed?.facts?.receiver || "";
+  if (sender && receiver) return `${sender} -> ${receiver}`;
+  return "Datei geladen";
+}
+
 function render() {
   const parsed = state.parsed;
-  els.windowTitle.textContent = state.fileName || "Deutscher Strom- und Gasmarkt";
-  els.fileName.textContent = state.fileName || "Noch keine Datei";
+  els.windowTitle.textContent = "EDIFACT Lastgang Viewer";
+  els.fileName.textContent = parsed ? formatDocumentSubtitle(parsed) : "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
   els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
   els.treeSegmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
@@ -615,7 +628,7 @@ function renderDocumentTabs() {
 
     const label = document.createElement("span");
     label.className = "document-tab-label";
-    label.textContent = documentState.fileName;
+    label.textContent = shortFileName(documentState.fileName);
 
     const close = document.createElement("span");
     close.className = "document-tab-close";
@@ -716,7 +729,7 @@ function renderTree(parsed) {
   }
 
   const fragment = document.createDocumentFragment();
-  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", state.measurementView === "series" && !state.selectedMeteringPoint, { root: true });
+  const root = treeNode(0, "▾", "Aktive Datei", state.measurementView === "series" && !state.selectedMeteringPoint, { root: true, title: state.fileName || "" });
   fragment.append(root);
 
   const groups = groupMeasurements(parsed.measurementSeries);
@@ -765,6 +778,7 @@ function treeNode(level, icon, label, selected, options = {}) {
   labelNode.className = "tree-label";
   labelNode.textContent = label;
   node.append(iconNode, labelNode);
+  if (options.title) node.title = options.title;
   return node;
 }
 

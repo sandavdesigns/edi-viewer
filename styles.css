@@ -255,7 +255,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  max-width: 320px;
+  max-width: 210px;
   min-height: 34px;
   padding: 0 9px 0 11px;
   border: 1px solid var(--line);
@@ -734,16 +734,18 @@ td.num {
 
 .insight-strip {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  align-content: start;
   gap: 1px;
-  min-height: 54px;
-  border-bottom: 1px solid var(--line);
+  min-width: 160px;
+  border-left: 1px solid var(--line);
   background: var(--line);
+  overflow: auto;
 }
 
 .insight-card {
   min-width: 0;
-  padding: 7px 10px;
+  padding: 7px 9px;
   background: var(--surface);
 }
 
@@ -760,7 +762,7 @@ td.num {
   overflow: hidden;
   margin-top: 2px;
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -858,6 +860,14 @@ body.is-tree-collapsed .tree-toggle::before {
 }
 
 .graph-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+}
+
+.graph-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 176px;
   min-height: 0;
 }
 
@@ -867,7 +877,7 @@ body.is-tree-collapsed .tree-toggle::before {
 }
 
 .chart-wrap.large {
-  height: calc(100% - 95px);
+  height: auto;
   min-height: 0;
   padding: 0;
   background: var(--plot);
@@ -893,5 +903,18 @@ body.is-tree-collapsed .tree-toggle::before {
   .table-heading select,
   .panel-heading select {
     width: 100%;
+  }
+
+  .graph-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .insight-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    max-height: 112px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
   }
 }
