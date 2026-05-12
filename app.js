@@ -986,11 +986,20 @@ async function handleFile(file) {
   resetVisibleRows();
   render();
   await nextFrame();
-  const text = await file.text();
+  const text = await readEdifactFile(file);
   state.fileName = file.name;
   state.parsed = parseEdifact(text);
   resetVisibleRows();
   render();
+}
+
+async function readEdifactFile(file) {
+  const buffer = await file.arrayBuffer();
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
 }
 
 function resetVisibleRows() {

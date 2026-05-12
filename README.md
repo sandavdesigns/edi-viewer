@@ -11,6 +11,7 @@ Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachr
 - Zeigt eine moderne Split-View mit Dateieigenschaften, Nachrichtenbaum, MSCONS-Messwerttabelle, Geschäftsdaten, Segmenttabelle und SVG-Grafiken
 - Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
+- Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
 - Exportiert Segmentdaten, Geschäftsdaten und JSON-Analyse
 
 ## Lokal öffnen
