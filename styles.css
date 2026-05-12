@@ -392,7 +392,7 @@ h2 {
 
 .dense table {
   table-layout: fixed;
-  min-width: 1260px;
+  min-width: 1120px;
 }
 
 table {
@@ -403,7 +403,7 @@ table {
 
 th,
 td {
-  padding: 6px 8px;
+  padding: 5px 6px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   text-align: left;
@@ -411,7 +411,7 @@ td {
 }
 
 .select-col {
-  width: 52px;
+  width: 34px;
   text-align: center;
 }
 
@@ -438,7 +438,7 @@ th {
 
 td {
   color: #26312c;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 tr.is-selected td {
@@ -457,17 +457,46 @@ td.num {
 
 .measurement-panel th:nth-child(3),
 .measurement-panel td:nth-child(3) {
-  width: 112px;
+  width: 104px;
   white-space: nowrap;
 }
 
 .measurement-panel th:nth-child(2),
 .measurement-panel td:nth-child(2) {
-  width: 230px;
+  width: 185px;
 }
 
 .measurement-panel td {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.measurement-panel th:nth-child(4),
+.measurement-panel td:nth-child(4),
+.measurement-panel th:nth-child(5),
+.measurement-panel td:nth-child(5),
+.measurement-panel th:nth-child(8),
+.measurement-panel td:nth-child(8),
+.measurement-panel th:nth-child(10),
+.measurement-panel td:nth-child(10) {
+  width: 116px;
+}
+
+.measurement-panel th:nth-child(6),
+.measurement-panel td:nth-child(6),
+.measurement-panel th:nth-child(7),
+.measurement-panel td:nth-child(7),
+.measurement-panel th:nth-child(9),
+.measurement-panel td:nth-child(9) {
+  width: 86px;
+}
+
+.measurement-panel th:nth-child(11),
+.measurement-panel td:nth-child(11),
+.measurement-panel th:nth-child(12),
+.measurement-panel td:nth-child(12) {
+  width: 132px;
 }
 
 .empty {
