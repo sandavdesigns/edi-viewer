@@ -24,7 +24,7 @@ docker compose up -d
 
 Danach ist die App unter <http://localhost:8080> erreichbar.
 
-Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Das ist besonders für Portainer praktisch, weil kein BuildKit/Builder benötigt wird.
+Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Beim Start lädt der Container die statischen App-Dateien aus diesem GitHub-Repository und serviert sie mit nginx. Das ist besonders für Portainer praktisch, weil kein BuildKit/Builder und keine Host-Datei-Mounts benötigt werden.
 
 ## Grenzen
 
