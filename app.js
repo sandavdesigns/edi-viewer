@@ -122,7 +122,6 @@ const QUALIFIER_LABELS = {
 };
 
 const els = {
-  fileInput: document.querySelector("#fileInput"),
   fileInputSecondary: document.querySelector("#fileInputSecondary"),
   dropZone: document.querySelector("#dropZone"),
   fileName: document.querySelector("#fileName"),
@@ -154,8 +153,6 @@ const els = {
   businessMore: document.querySelector("#businessMore"),
   segmentsMore: document.querySelector("#segmentsMore"),
   exportSegments: document.querySelector("#exportSegments"),
-  exportBusiness: document.querySelector("#exportBusiness"),
-  exportJson: document.querySelector("#exportJson"),
   emptyRowTemplate: document.querySelector("#emptyRowTemplate"),
 };
 
@@ -1260,7 +1257,6 @@ function showMeteringPoint(meteringPoint) {
 }
 
 function wireEvents() {
-  els.fileInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
   els.fileInputSecondary.addEventListener("change", (event) => handleFile(event.target.files[0]));
   els.segmentFilter.addEventListener("input", (event) => {
     state.segmentFilter = event.target.value;
@@ -1410,15 +1406,6 @@ function wireEvents() {
 
   els.exportSegments.addEventListener("click", () => {
     exportSelectedLoadProfiles("lastgang");
-  });
-
-  els.exportBusiness.addEventListener("click", () => {
-    exportSelectedLoadProfiles("lastgang-daten");
-  });
-
-  els.exportJson.addEventListener("click", () => {
-    if (!state.parsed) return;
-    download(`${baseName(state.fileName)}-analyse.json`, "application/json;charset=utf-8", JSON.stringify(state.parsed, null, 2));
   });
 }
 
