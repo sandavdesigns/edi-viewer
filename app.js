@@ -7,7 +7,9 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
+  treeCollapsed: false,
   measurementView: "series",
+  selectedMeteringPoint: "",
   selectedSeriesKey: "",
   selectedSeriesKeys: new Set(),
   visibleMeasurementRows: 500,
@@ -132,7 +134,11 @@ const els = {
   chartMode: document.querySelector("#chartMode"),
   segmentFilter: document.querySelector("#segmentFilter"),
   businessFilter: document.querySelector("#businessFilter"),
+  meteringPointFilter: document.querySelector("#meteringPointFilter"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
+  treeView: document.querySelector("#treeView"),
+  treeToggle: document.querySelector("#treeToggle"),
+  treeSegmentCount: document.querySelector("#treeSegmentCount"),
   infoOpen: document.querySelector("#infoOpen"),
   infoClose: document.querySelector("#infoClose"),
   infoDialog: document.querySelector("#infoDialog"),
@@ -551,10 +557,13 @@ function render() {
   els.fileName.textContent = state.fileName || "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
   els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
+  els.treeSegmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
   els.validationState.textContent = parsed ? parsed.validation.message : "Bereit";
   els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
   renderFacts(parsed);
+  renderMeteringPointFilter(parsed);
+  renderTree(parsed);
   renderMeasurementTable(parsed);
   renderBusinessTable(parsed);
   renderSegmentsTable(parsed);
@@ -587,8 +596,96 @@ function renderFacts(parsed) {
   }
 }
 
+function renderMeteringPointFilter(parsed) {
+  els.meteringPointFilter.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "Alle Zählpunkte";
+  els.meteringPointFilter.append(allOption);
+
+  const points = [...new Set((parsed?.measurementSeries || []).map((row) => row.meteringPoint).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+  for (const point of points) {
+    const option = document.createElement("option");
+    option.value = point;
+    option.textContent = point;
+    els.meteringPointFilter.append(option);
+  }
+
+  if (points.includes(state.selectedMeteringPoint)) {
+    els.meteringPointFilter.value = state.selectedMeteringPoint;
+  } else {
+    state.selectedMeteringPoint = "";
+    els.meteringPointFilter.value = "";
+  }
+}
+
+function renderTree(parsed) {
+  els.treeView.innerHTML = "";
+  updateTreePanelState();
+  if (!parsed) {
+    const empty = document.createElement("div");
+    empty.className = "tree-node";
+    empty.style.setProperty("--level", "0");
+    empty.innerHTML = '<span class="tree-icon">•</span><span class="tree-label">Noch keine Datei geladen</span>';
+    els.treeView.append(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", state.measurementView === "series" && !state.selectedMeteringPoint, { root: true });
+  fragment.append(root);
+
+  const groups = groupMeasurements(parsed.measurementSeries);
+  for (const [meteringPoint, rows] of groups) {
+    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} OBIS`, state.selectedMeteringPoint === meteringPoint && state.measurementView === "series", { meteringPoint }));
+    for (const row of rows) {
+      fragment.append(treeNode(2, "▸", `${row.obis} - ${row.pointCount} Werte - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key && state.measurementView === "points", { seriesKey: row.key }));
+    }
+  }
+
+  if (!groups.size) {
+    for (const segment of parsed.segments.slice(0, 300)) {
+      fragment.append(treeNode(1, "•", `${segment.index} ${segment.tag} - ${segment.label}`, false));
+    }
+  }
+
+  els.treeView.append(fragment);
+}
+
+function updateTreePanelState() {
+  document.body.classList.toggle("is-tree-collapsed", state.treeCollapsed);
+  els.treeToggle.textContent = state.treeCollapsed ? "MSCONS anzeigen" : "MSCONS";
+  els.treeToggle.setAttribute("aria-expanded", String(!state.treeCollapsed));
+}
+
+function treeNode(level, icon, label, selected, options = {}) {
+  const node = document.createElement("div");
+  node.className = `tree-node${selected ? " is-selected" : ""}`;
+  node.style.setProperty("--level", String(level));
+  if (options.root) {
+    node.dataset.rootNode = "true";
+    node.tabIndex = 0;
+  }
+  if (options.meteringPoint) {
+    node.dataset.meteringPoint = options.meteringPoint;
+    node.tabIndex = 0;
+  }
+  if (options.seriesKey) {
+    node.dataset.seriesKey = options.seriesKey;
+    node.tabIndex = 0;
+  }
+  const iconNode = document.createElement("span");
+  iconNode.className = "tree-icon";
+  iconNode.textContent = icon;
+  const labelNode = document.createElement("span");
+  labelNode.className = "tree-label";
+  labelNode.textContent = label;
+  node.append(iconNode, labelNode);
+  return node;
+}
+
 function groupMeasurements(rows) {
-  return groupBy(rows.slice(0, 500), (row) => row.meteringPoint || "-");
+  return groupBy(rows, (row) => row.meteringPoint || "-");
 }
 
 function groupBy(rows, keyFn) {
@@ -673,7 +770,9 @@ function renderMeasurementTable(parsed) {
     checkbox.setAttribute("aria-label", `${row.meteringPoint} ${row.obis} exportieren`);
     selectCell.append(checkbox);
     tr.append(selectCell);
-    appendCell(tr, row.meteringPoint);
+    const meteringCell = appendCell(tr, row.meteringPoint, "metering-point-cell");
+    meteringCell.dataset.meteringPoint = row.meteringPoint;
+    meteringCell.title = "Zählpunkt anzeigen";
     appendCell(tr, row.obis, "mono");
     appendCell(tr, formatDateTime(row.from));
     appendCell(tr, formatDateTime(row.to));
@@ -757,6 +856,7 @@ function appendCell(row, text, className = "") {
   td.textContent = text || "";
   if (className) td.className = className;
   row.append(td);
+  return td;
 }
 
 function appendEmpty(target, colspan = 5) {
@@ -779,7 +879,10 @@ function getFilteredSegments(parsed) {
 }
 
 function getFilteredMeasurementRows(parsed) {
-  return parsed?.measurementSeries.filter((row) => includesFilter(row, state.businessFilter)) || [];
+  return parsed?.measurementSeries.filter((row) => {
+    if (state.selectedMeteringPoint && row.meteringPoint !== state.selectedMeteringPoint) return false;
+    return includesFilter(row, state.businessFilter);
+  }) || [];
 }
 
 function includesFilter(value, filter) {
@@ -1041,36 +1144,53 @@ function toCsv(rows, columns) {
   ].join("\n");
 }
 
-function selectedLoadProfileRows(parsed) {
+function selectedLoadProfileSeries(parsed) {
   if (!parsed) return [];
   const selectedKeys = state.selectedSeriesKeys.size ? [...state.selectedSeriesKeys] : [state.selectedSeriesKey].filter(Boolean);
-  const series = selectedKeys.length
+  return selectedKeys.length
     ? parsed.measurementSeries.filter((row) => selectedKeys.includes(row.key))
     : getFilteredMeasurementRows(parsed);
+}
 
-  return series.flatMap((row) =>
-    row.points.map((point) => ({
-      meteringPoint: row.meteringPoint,
-      obis: row.obis,
-      from: formatDateTime(point.from),
-      to: formatDateTime(point.to),
-      value: point.quantity,
-      status: point.status || "",
-    })),
-  );
+function selectedLoadProfileRows(parsed, series) {
+  if (!parsed) return [];
+  const rowsByPeriod = new Map();
+  for (const row of series) {
+    for (const point of row.points) {
+      const key = `${point.from || ""}||${point.to || ""}`;
+      if (!rowsByPeriod.has(key)) {
+        rowsByPeriod.set(key, {
+          fromRaw: point.from || "",
+          toRaw: point.to || "",
+          from: formatDateTime(point.from),
+          to: formatDateTime(point.to),
+        });
+      }
+      const exportRow = rowsByPeriod.get(key);
+      exportRow[`${row.key}__value`] = point.quantity;
+      exportRow[`${row.key}__status`] = point.status || "";
+    }
+  }
+
+  return [...rowsByPeriod.values()].sort((a, b) => a.fromRaw.localeCompare(b.fromRaw) || a.toRaw.localeCompare(b.toRaw));
 }
 
 function exportSelectedLoadProfiles(suffix) {
   if (!state.parsed) return;
-  const rows = selectedLoadProfileRows(state.parsed);
-  const csv = toCsv(rows, [
-    { label: "Zaehlpunkt", value: (row) => row.meteringPoint },
-    { label: "OBIS", value: (row) => row.obis },
+  const series = selectedLoadProfileSeries(state.parsed);
+  const rows = selectedLoadProfileRows(state.parsed, series);
+  const columns = [
     { label: "von", value: (row) => row.from },
     { label: "bis", value: (row) => row.to },
-    { label: "wert", value: (row) => row.value },
-    { label: "status", value: (row) => row.status },
-  ]);
+  ];
+  for (const row of series) {
+    const label = `${row.meteringPoint} | ${row.obis}`;
+    columns.push(
+      { label: `${label} wert`, value: (exportRow) => exportRow[`${row.key}__value`] ?? "" },
+      { label: `${label} status`, value: (exportRow) => exportRow[`${row.key}__status`] ?? "" },
+    );
+  }
+  const csv = toCsv(rows, columns);
   download(`${baseName(state.fileName)}-${suffix}.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
 }
 
@@ -1099,6 +1219,7 @@ async function readEdifactFile(file) {
 
 function resetVisibleRows() {
   state.selectedSeriesKey = "";
+  state.selectedMeteringPoint = "";
   state.selectedSeriesKeys = new Set();
   state.measurementView = "series";
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
@@ -1117,12 +1238,24 @@ function openSeriesDetail(seriesKey) {
   state.measurementView = "points";
   state.visiblePointRows = INITIAL_VISIBLE_ROWS;
   renderMeasurementTable(state.parsed);
+  renderTree(state.parsed);
   renderChart(state.parsed);
 }
 
 function openSeriesList() {
   state.measurementView = "series";
   renderMeasurementTable(state.parsed);
+  renderTree(state.parsed);
+  renderChart(state.parsed);
+}
+
+function showMeteringPoint(meteringPoint) {
+  state.selectedMeteringPoint = meteringPoint || "";
+  state.measurementView = "series";
+  state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+  renderMeteringPointFilter(state.parsed);
+  renderMeasurementTable(state.parsed);
+  renderTree(state.parsed);
   renderChart(state.parsed);
 }
 
@@ -1140,6 +1273,10 @@ function wireEvents() {
     state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
     renderMeasurementTable(state.parsed);
     renderChart(state.parsed);
+    renderTree(state.parsed);
+  });
+  els.meteringPointFilter.addEventListener("change", (event) => {
+    showMeteringPoint(event.target.value);
   });
   els.businessDetailFilter.addEventListener("input", (event) => {
     state.businessDetailFilter = event.target.value;
@@ -1165,6 +1302,11 @@ function wireEvents() {
 
   els.infoDialog.addEventListener("click", (event) => {
     if (event.target === els.infoDialog) els.infoDialog.close();
+  });
+
+  els.treeToggle.addEventListener("click", () => {
+    state.treeCollapsed = !state.treeCollapsed;
+    updateTreePanelState();
   });
 
   for (const eventName of ["dragenter", "dragover"]) {
@@ -1200,6 +1342,38 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
+  els.treeView.addEventListener("click", (event) => {
+    const root = event.target.closest("[data-root-node]");
+    if (root) {
+      showMeteringPoint("");
+      return;
+    }
+    const meteringPoint = event.target.closest("[data-metering-point]");
+    if (meteringPoint) {
+      showMeteringPoint(meteringPoint.dataset.meteringPoint);
+      return;
+    }
+    const node = event.target.closest("[data-series-key]");
+    if (!node) return;
+    openSeriesDetail(node.dataset.seriesKey);
+  });
+
+  els.treeView.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const root = event.target.closest("[data-root-node]");
+    const meteringPoint = event.target.closest("[data-metering-point]");
+    const node = event.target.closest("[data-series-key]");
+    if (!root && !meteringPoint && !node) return;
+    event.preventDefault();
+    if (root) {
+      showMeteringPoint("");
+    } else if (meteringPoint) {
+      showMeteringPoint(meteringPoint.dataset.meteringPoint);
+    } else {
+      openSeriesDetail(node.dataset.seriesKey);
+    }
+  });
+
   els.measurementTable.addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-key]");
     if (!row) return;
@@ -1211,9 +1385,15 @@ function wireEvents() {
       }
       return;
     }
+    const meteringCell = event.target.closest(".metering-point-cell");
+    if (meteringCell) {
+      showMeteringPoint(meteringCell.dataset.meteringPoint);
+      return;
+    }
     state.selectedSeriesKey = row.dataset.key || "";
     state.measurementView = "series";
     renderMeasurementTable(state.parsed);
+    renderTree(state.parsed);
     renderChart(state.parsed);
   });
 

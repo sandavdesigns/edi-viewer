@@ -37,6 +37,16 @@
       </section>
 
       <section class="viewer-shell">
+        <aside class="left-pane">
+          <section class="panel tree-panel">
+            <div class="panel-heading">
+              <button id="treeToggle" class="tree-toggle" type="button" aria-expanded="true">MSCONS</button>
+              <span id="treeSegmentCount">0 Segmente</span>
+            </div>
+            <div id="treeView" class="tree-view"></div>
+          </section>
+        </aside>
+
         <section class="right-pane">
           <section class="panel measurement-panel">
             <div class="panel-heading table-heading">
@@ -44,7 +54,12 @@
                 <h2 id="messageType">MSCONS</h2>
                 <span id="fileName" class="subtle">Noch keine Datei</span>
               </div>
-              <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Messdaten filtern" />
+              <div class="table-controls">
+                <select id="meteringPointFilter" aria-label="Zählpunkt filtern">
+                  <option value="">Alle Zählpunkte</option>
+                </select>
+                <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Messdaten filtern" />
+              </div>
             </div>
             <div class="table-wrap dense">
               <table>
