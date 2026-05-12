@@ -9,6 +9,7 @@ Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachr
 - Liest Segmentstrukturen wie `UNB`, `UNH`, `BGM`, `DTM`, `NAD`, `LOC`, `RFF`, `QTY`, `MOA`, `PRI`, `UNT`, `UNZ`
 - Erkennt gängige Nachrichtentypen wie `UTILMD`, `MSCONS`, `INVOIC`, `REMADV`, `APERAK`, `CONTRL`, `PRICAT`, `ORDERS`, `ORDRSP`, `QUOTES` und `REQOTE`
 - Zeigt eine moderne Split-View mit Dateieigenschaften, Nachrichtenbaum, MSCONS-Messwerttabelle, Geschäftsdaten, Segmenttabelle und SVG-Grafiken
+- Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Exportiert Segmentdaten, Geschäftsdaten und JSON-Analyse
 

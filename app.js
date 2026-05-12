@@ -7,7 +7,7 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
-  selectedMeasurementIndex: 0,
+  selectedSeriesKey: "",
   visibleMeasurementRows: 500,
   visibleBusinessRows: 500,
   visibleSegmentRows: 500,
@@ -182,9 +182,13 @@ function parseEdifact(rawText) {
   for (const row of measurementRows) {
     row.searchText = Object.values(row).join(" ").toLowerCase();
   }
+  const measurementSeries = buildMeasurementSeries(measurementRows);
+  for (const row of measurementSeries) {
+    row.searchText = [row.meteringPoint, row.obis, row.from, row.to, row.quantity, row.minimum, row.maximum, row.sender, row.receiver, row.thirdParty].join(" ").toLowerCase();
+  }
   const validation = validateInterchange(segments);
 
-  return { chars, segments, businessRows, measurementRows, facts, validation };
+  return { chars, segments, businessRows, measurementRows, measurementSeries, facts, validation };
 }
 
 function detectServiceChars(text) {
@@ -351,14 +355,25 @@ function extractMeasurementRows(segments, facts) {
     end: "",
     thirdParty: "",
   };
+  let pending = null;
+
+  const flushPending = () => {
+    if (!pending) return;
+    pending.from = pending.from || context.start || "-";
+    pending.to = pending.to || context.end || pending.from;
+    pending.minimumAt = pending.from;
+    pending.maximumAt = pending.to;
+    rows.push(pending);
+    pending = null;
+  };
 
   for (const segment of segments) {
-    const flat = segment.elements.flat().filter(Boolean);
     const raw = segment.raw;
     const obisMatch = raw.match(/\b\d-\d:\d+\.\d+\.\d+\b/);
     if (obisMatch) context.obis = obisMatch[0];
 
     if (segment.tag === "LOC") {
+      flushPending();
       const qualifier = segment.elements[0]?.[0] || "";
       const value = segment.elements[0]?.[1] || segment.elements[1]?.[0] || "";
       if (["172", "Z16", "Z18"].includes(qualifier) && value) context.meteringPoint = value;
@@ -375,16 +390,22 @@ function extractMeasurementRows(segments, facts) {
       const value = segment.elements[0]?.[1] || "";
       const format = segment.elements[0]?.[2] || "";
       const formatted = formatEdifactDate(value, format);
-      if (["163", "324", "157"].includes(qualifier)) context.start = formatted;
-      if (["164", "158"].includes(qualifier)) context.end = formatted;
+      const target = pending || context;
+      if (["163", "324", "157"].includes(qualifier)) target.start = formatted;
+      if (["164", "158"].includes(qualifier)) target.end = formatted;
       if (format === "718" && value.includes("-")) {
         const [start, end] = formatted.split(" bis ");
-        context.start = start || context.start;
-        context.end = end || context.end;
+        target.start = start || target.start;
+        target.end = end || target.end;
+      }
+      if (pending) {
+        pending.from = pending.start || pending.from;
+        pending.to = pending.end || pending.to;
       }
     }
 
     if (segment.tag !== "QTY" && segment.tag !== "MEA") continue;
+    flushPending();
 
     const qualifier = segment.elements[0]?.[0] || "";
     const value = Number(normalizeDecimal(segment.elements[0]?.[1] || segment.elements[2]?.[0] || ""));
@@ -393,26 +414,72 @@ function extractMeasurementRows(segments, facts) {
     const unit = segment.elements[0]?.[2] || "";
     const minimum = Math.min(0, value);
     const maximum = Math.max(0, value);
-    rows.push({
+    pending = {
       index: rows.length,
       meteringPoint: context.meteringPoint || "-",
       obis: context.obis || qualifier || "-",
-      from: context.start || "-",
-      to: context.end || "-",
+      from: "",
+      to: "",
       quantity: value,
       unit,
       minimum,
-      minimumAt: context.start || "-",
+      minimumAt: "",
       maximum,
-      maximumAt: context.end || context.start || "-",
+      maximumAt: "",
       sender: facts.sender || "-",
       receiver: facts.receiver || "-",
       thirdParty: context.thirdParty || "",
       segment: `${segment.index} ${segment.tag}`,
-    });
+    };
   }
 
+  flushPending();
   return rows;
+}
+
+function buildMeasurementSeries(points) {
+  const seriesByKey = new Map();
+
+  for (const point of points) {
+    const key = `${point.meteringPoint}||${point.obis}`;
+    if (!seriesByKey.has(key)) {
+      seriesByKey.set(key, {
+        key,
+        index: seriesByKey.size,
+        meteringPoint: point.meteringPoint,
+        obis: point.obis,
+        from: point.from,
+        to: point.to,
+        quantity: 0,
+        minimum: point.quantity,
+        minimumAt: point.from,
+        maximum: point.quantity,
+        maximumAt: point.from,
+        sender: point.sender,
+        receiver: point.receiver,
+        thirdParty: point.thirdParty,
+        pointCount: 0,
+        points: [],
+      });
+    }
+
+    const series = seriesByKey.get(key);
+    series.points.push(point);
+    series.pointCount += 1;
+    series.quantity += point.quantity;
+    if (!series.from || series.from === "-") series.from = point.from;
+    series.to = point.to || series.to;
+    if (point.quantity < series.minimum) {
+      series.minimum = point.quantity;
+      series.minimumAt = point.from;
+    }
+    if (point.quantity > series.maximum) {
+      series.maximum = point.quantity;
+      series.maximumAt = point.from;
+    }
+  }
+
+  return [...seriesByKey.values()];
 }
 
 function validateInterchange(segments) {
@@ -500,7 +567,7 @@ function renderFacts(parsed) {
     ["Interchange", parsed.facts.interchangeRef || "-"],
     ["Syntax", parsed.facts.syntax || "-"],
     ["Trennzeichen", parsed.facts.separators],
-    ["Messzeilen", String(parsed.measurementRows.length)],
+    ["Lastgänge", `${parsed.measurementSeries.length} Reihen / ${parsed.measurementRows.length} Werte`],
     ["Extrahiert", `${parsed.facts.references} Referenzen · ${parsed.facts.quantities} Mengen · ${parsed.facts.amounts} Beträge`],
   ];
 
@@ -524,12 +591,11 @@ function renderTree(parsed) {
   const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", true);
   fragment.append(root);
 
-  const groups = groupMeasurements(parsed.measurementRows);
+  const groups = groupMeasurements(parsed.measurementSeries);
   for (const [meteringPoint, rows] of groups) {
-    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} Werte`, false));
-    const byObis = groupBy(rows, (row) => row.obis);
-    for (const [obis, obisRows] of byObis) {
-      fragment.append(treeNode(2, "▸", `${obis} - Menge ${formatNumber(sumRows(obisRows))}`, obisRows[0]?.index === state.selectedMeasurementIndex));
+    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} OBIS`, false));
+    for (const row of rows) {
+      fragment.append(treeNode(2, "▸", `${row.obis} - ${row.pointCount} Werte - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key));
     }
   }
 
@@ -615,17 +681,17 @@ function renderMeasurementTable(parsed) {
   els.measurementTable.innerHTML = "";
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
-  updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Messzeilen");
+  updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
-  const selectedExists = visibleRows.some((row) => row.index === state.selectedMeasurementIndex);
-  if (!selectedExists && visibleRows[0]) state.selectedMeasurementIndex = visibleRows[0].index;
+  const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
+  if (!selectedExists && visibleRows[0]) state.selectedSeriesKey = visibleRows[0].key;
 
   const fragment = document.createDocumentFragment();
   for (const row of visibleRows) {
     const tr = document.createElement("tr");
-    tr.dataset.index = String(row.index);
-    if (row.index === state.selectedMeasurementIndex) tr.className = "is-selected";
+    tr.dataset.key = row.key;
+    if (row.key === state.selectedSeriesKey) tr.className = "is-selected";
     appendCell(tr, row.meteringPoint);
     appendCell(tr, row.obis, "mono");
     appendCell(tr, row.from);
@@ -696,7 +762,7 @@ function getFilteredSegments(parsed) {
 }
 
 function getFilteredMeasurementRows(parsed) {
-  return parsed?.measurementRows.filter((row) => includesFilter(row, state.businessFilter)) || [];
+  return parsed?.measurementSeries.filter((row) => includesFilter(row, state.businessFilter)) || [];
 }
 
 function includesFilter(value, filter) {
@@ -784,12 +850,13 @@ function drawQuantityChart(svg, rows) {
 }
 
 function drawMeasurementChart(svg, rows) {
-  const visibleRows = rows.slice(0, Math.max(state.visibleMeasurementRows, 1));
-  const values = visibleRows.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
+  const selectedSeries = getSelectedSeries(state.parsed, rows);
+  const pointsForSeries = selectedSeries?.points || [];
+  const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
 
   if (!values.length) {
     addPlotBackground(svg);
-    addText(svg, 360, 145, "Keine Mengenwerte gefunden", "middle", "var(--muted)", 18, 700);
+    addText(svg, 360, 145, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 18, 700);
     return;
   }
 
@@ -881,8 +948,13 @@ function formatNumber(value) {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 }).format(Number(value) || 0);
 }
 
+function getSelectedSeries(parsed, candidates = null) {
+  const rows = candidates || parsed?.measurementSeries || [];
+  return rows.find((item) => item.key === state.selectedSeriesKey) || rows[0] || null;
+}
+
 function updateGraphTitle(parsed) {
-  const row = parsed?.measurementRows.find((item) => item.index === state.selectedMeasurementIndex);
+  const row = getSelectedSeries(parsed);
   els.graphTitle.textContent = row ? `${row.meteringPoint} - ${row.obis}: ${row.from} - ${row.to}` : "Lastgang / Mengenverlauf";
 }
 
@@ -922,7 +994,7 @@ async function handleFile(file) {
 }
 
 function resetVisibleRows() {
-  state.selectedMeasurementIndex = 0;
+  state.selectedSeriesKey = "";
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
   state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
   state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
@@ -987,9 +1059,9 @@ function wireEvents() {
   });
 
   els.measurementTable.addEventListener("click", (event) => {
-    const row = event.target.closest("tr[data-index]");
+    const row = event.target.closest("tr[data-key]");
     if (!row) return;
-    state.selectedMeasurementIndex = Number(row.dataset.index) || 0;
+    state.selectedSeriesKey = row.dataset.key || "";
     renderMeasurementTable(state.parsed);
     renderTree(state.parsed);
     renderChart(state.parsed);
