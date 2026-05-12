@@ -1119,6 +1119,13 @@ function formatNumber(value) {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 }).format(Number(value) || 0);
 }
 
+function formatCsvNumber(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value).replace(".", ",");
+  return String(number).replace(".", ",");
+}
+
 function formatAxisDate(value) {
   const digits = String(value || "").replace(/\D/g, "");
   if (digits.length < 8) return value || "";
@@ -1212,7 +1219,7 @@ function exportSelectedLoadProfiles(suffix) {
   ];
   for (const row of series) {
     const label = `${row.meteringPoint} | ${row.obis}`;
-    columns.push({ label: `${label} wert`, value: (exportRow) => exportRow[`${row.key}__value`] ?? "" });
+    columns.push({ label: `${label} wert`, value: (exportRow) => formatCsvNumber(exportRow[`${row.key}__value`]) });
     if (series.length === 1) {
       columns.push({ label: `${label} status`, value: (exportRow) => exportRow[`${row.key}__status`] ?? "" });
     }
