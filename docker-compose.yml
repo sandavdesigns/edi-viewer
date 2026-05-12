@@ -2,7 +2,7 @@ services:
   edi-viewer:
     image: nginx:1.27-alpine
     ports:
-      - "8080:80"
+      - "${APP_PORT:-8080}:80"
     command: >
       sh -c "rm -rf /usr/share/nginx/html/* /tmp/edi-viewer.tar.gz /tmp/edi-viewer-main
       && wget -O /tmp/edi-viewer.tar.gz https://github.com/sandavdesigns/edi-viewer/archive/refs/heads/main.tar.gz
