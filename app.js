@@ -10,6 +10,7 @@ const state = {
   treeCollapsed: false,
   measurementView: "series",
   selectedMeteringPoint: "",
+  selectedObis: "",
   selectedSeriesKey: "",
   selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
@@ -137,6 +138,7 @@ const els = {
   segmentFilter: document.querySelector("#segmentFilter"),
   businessFilter: document.querySelector("#businessFilter"),
   meteringPointFilter: document.querySelector("#meteringPointFilter"),
+  obisFilter: document.querySelector("#obisFilter"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
   treeView: document.querySelector("#treeView"),
   treeToggle: document.querySelector("#treeToggle"),
@@ -148,6 +150,7 @@ const els = {
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
+  copyMeasurement: document.querySelector("#copyMeasurement"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
@@ -564,6 +567,7 @@ function render() {
 
   renderFacts(parsed);
   renderMeteringPointFilter(parsed);
+  renderObisFilter(parsed);
   renderTree(parsed);
   renderMeasurementTable(parsed);
   renderBusinessTable(parsed);
@@ -617,6 +621,30 @@ function renderMeteringPointFilter(parsed) {
   } else {
     state.selectedMeteringPoint = "";
     els.meteringPointFilter.value = "";
+  }
+}
+
+function renderObisFilter(parsed) {
+  els.obisFilter.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "Alle OBIS";
+  els.obisFilter.append(allOption);
+
+  const candidates = (parsed?.measurementSeries || []).filter((row) => !state.selectedMeteringPoint || row.meteringPoint === state.selectedMeteringPoint);
+  const codes = [...new Set(candidates.map((row) => row.obis).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+  for (const code of codes) {
+    const option = document.createElement("option");
+    option.value = code;
+    option.textContent = code;
+    els.obisFilter.append(option);
+  }
+
+  if (codes.includes(state.selectedObis)) {
+    els.obisFilter.value = state.selectedObis;
+  } else {
+    state.selectedObis = "";
+    els.obisFilter.value = "";
   }
 }
 
@@ -902,6 +930,7 @@ function getFilteredSegments(parsed) {
 function getFilteredMeasurementRows(parsed) {
   return parsed?.measurementSeries.filter((row) => {
     if (state.selectedMeteringPoint && row.meteringPoint !== state.selectedMeteringPoint) return false;
+    if (state.selectedObis && row.obis !== state.selectedObis) return false;
     return includesFilter(row, state.businessFilter);
   }) || [];
 }
@@ -1180,6 +1209,14 @@ function toCsv(rows, columns) {
   ].join("\n");
 }
 
+function toTsv(rows, columns) {
+  const clean = (value) => String(value ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " ");
+  return [
+    columns.map((column) => clean(column.label)).join("\t"),
+    ...rows.map((row) => columns.map((column) => clean(column.value(row))).join("\t")),
+  ].join("\n");
+}
+
 function selectedLoadProfileSeries(parsed) {
   if (!parsed) return [];
   const selectedKeys = state.selectedSeriesKeys.size ? [...state.selectedSeriesKeys] : [state.selectedSeriesKey].filter(Boolean);
@@ -1230,6 +1267,69 @@ function exportSelectedLoadProfiles(suffix) {
   download(`${baseName(state.fileName)}-${suffix}.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
 }
 
+function currentMeasurementCopyData() {
+  if (!state.parsed) return { rows: [], columns: [] };
+  if (state.measurementView === "points") {
+    const selectedSeries = getSelectedSeries(state.parsed);
+    const rows = (selectedSeries?.points || []).slice(0, state.visiblePointRows);
+    return {
+      rows,
+      columns: [
+        { label: "Zeitpunkt", value: (row) => formatDateTime(row.from) },
+        { label: "OBIS", value: (row) => row.obis },
+        { label: "von", value: (row) => formatDateTime(row.from) },
+        { label: "bis", value: (row) => formatDateTime(row.to) },
+        { label: "Wert", value: (row) => formatNumber(row.quantity) },
+        { label: "Status", value: (row) => row.status || "" },
+        { label: "Einheit", value: (row) => row.unit || "" },
+        { label: "Segment", value: (row) => row.segment },
+        { label: "Absender", value: (row) => row.sender },
+        { label: "Empfänger", value: (row) => row.receiver },
+      ],
+    };
+  }
+
+  const rows = getFilteredMeasurementRows(state.parsed).slice(0, state.visibleMeasurementRows);
+  return {
+    rows,
+    columns: [
+      { label: "Zählpunkt", value: (row) => row.meteringPoint },
+      { label: "OBIS", value: (row) => row.obis },
+      { label: "von", value: (row) => formatDateTime(row.from) },
+      { label: "bis", value: (row) => formatDateTime(row.to) },
+      { label: "Menge", value: (row) => formatNumber(row.quantity) },
+      { label: "Minimum", value: (row) => formatNumber(row.minimum) },
+      { label: "Minimum am", value: (row) => formatDateTime(row.minimumAt) },
+      { label: "Maximum", value: (row) => formatNumber(row.maximum) },
+      { label: "Maximum am", value: (row) => formatDateTime(row.maximumAt) },
+      { label: "Absender", value: (row) => row.sender },
+      { label: "Empfänger", value: (row) => row.receiver },
+    ],
+  };
+}
+
+async function copyCurrentMeasurementTable() {
+  const { rows, columns } = currentMeasurementCopyData();
+  if (!rows.length) return;
+  const text = toTsv(rows, columns);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  els.copyMeasurement.textContent = "Kopiert";
+  window.setTimeout(() => {
+    els.copyMeasurement.textContent = "Kopieren";
+  }, 1200);
+}
+
 async function handleFile(file) {
   if (!file) return;
   state.fileName = `${file.name} wird geladen...`;
@@ -1257,6 +1357,7 @@ function resetVisibleRows() {
   state.selectedSeriesKey = "";
   state.selectedPointIndex = null;
   state.selectedMeteringPoint = "";
+  state.selectedObis = "";
   state.selectedSeriesKeys = new Set();
   state.measurementView = "series";
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
@@ -1290,10 +1391,12 @@ function openSeriesList() {
 
 function showMeteringPoint(meteringPoint) {
   state.selectedMeteringPoint = meteringPoint || "";
+  state.selectedObis = "";
   state.measurementView = "series";
   state.selectedPointIndex = null;
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
   renderMeteringPointFilter(state.parsed);
+  renderObisFilter(state.parsed);
   renderMeasurementTable(state.parsed);
   renderTree(state.parsed);
   renderChart(state.parsed);
@@ -1316,6 +1419,15 @@ function wireEvents() {
   });
   els.meteringPointFilter.addEventListener("change", (event) => {
     showMeteringPoint(event.target.value);
+  });
+  els.obisFilter.addEventListener("change", (event) => {
+    state.selectedObis = event.target.value;
+    state.measurementView = "series";
+    state.selectedPointIndex = null;
+    state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+    renderMeasurementTable(state.parsed);
+    renderChart(state.parsed);
+    renderTree(state.parsed);
   });
   els.businessDetailFilter.addEventListener("input", (event) => {
     state.businessDetailFilter = event.target.value;
@@ -1379,6 +1491,15 @@ function wireEvents() {
     }
     renderMeasurementTable(state.parsed);
     renderChart(state.parsed);
+  });
+
+  els.copyMeasurement.addEventListener("click", () => {
+    copyCurrentMeasurementTable().catch(() => {
+      els.copyMeasurement.textContent = "Fehler";
+      window.setTimeout(() => {
+        els.copyMeasurement.textContent = "Kopieren";
+      }, 1200);
+    });
   });
 
   els.measurementHead.addEventListener("change", (event) => {

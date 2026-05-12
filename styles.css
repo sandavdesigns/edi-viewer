@@ -248,6 +248,7 @@ h2 {
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .table-heading input,
@@ -262,7 +263,15 @@ h2 {
 }
 
 .table-heading select {
-  width: min(280px, 28vw);
+  width: min(230px, 22vw);
+}
+
+#obisFilter {
+  width: min(150px, 14vw);
+}
+
+#businessFilter {
+  width: min(230px, 22vw);
 }
 
 .facts-list {
