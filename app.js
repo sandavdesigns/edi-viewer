@@ -7,10 +7,12 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
-  leftTab: "structure",
+  leftTab: "mscons",
+  measurementView: "series",
   selectedSeriesKey: "",
   selectedSeriesKeys: new Set(),
   visibleMeasurementRows: 500,
+  visiblePointRows: 500,
   visibleBusinessRows: 500,
   visibleSegmentRows: 500,
 };
@@ -437,7 +439,7 @@ function extractMeasurementRows(segments, facts) {
       sender: facts.sender || "-",
       receiver: facts.receiver || "-",
       thirdParty: context.thirdParty || "",
-      status: context.status || "",
+      status: context.status || qualifier || "",
       segment: `${segment.index} ${segment.tag}`,
     };
   }
@@ -629,7 +631,7 @@ function renderTree(parsed) {
   for (const [meteringPoint, rows] of groups) {
     fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} OBIS`, false));
     for (const row of rows) {
-      fragment.append(treeNode(2, "▸", `${row.obis} - ${row.pointCount} Werte - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key));
+      fragment.append(treeNode(2, "▸", `${row.obis} - ${row.pointCount} Werte - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key, row.key));
     }
   }
 
@@ -648,10 +650,14 @@ function updateLeftTabs() {
   });
 }
 
-function treeNode(level, icon, label, selected) {
+function treeNode(level, icon, label, selected, seriesKey = "") {
   const node = document.createElement("div");
   node.className = `tree-node${selected ? " is-selected" : ""}`;
   node.style.setProperty("--level", String(level));
+  if (seriesKey) {
+    node.dataset.seriesKey = seriesKey;
+    node.tabIndex = 0;
+  }
   const iconNode = document.createElement("span");
   iconNode.className = "tree-icon";
   iconNode.textContent = icon;
@@ -719,6 +725,12 @@ function renderBusinessTable(parsed) {
 
 function renderMeasurementTable(parsed) {
   els.measurementTable.innerHTML = "";
+  if (state.measurementView === "points") {
+    renderMeasurementPointTable(parsed);
+    return;
+  }
+
+  updateMeasurementHeader(["Auswahl", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger", "Dritter"]);
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
@@ -757,6 +769,44 @@ function renderMeasurementTable(parsed) {
   }
   els.measurementTable.append(fragment);
   updateGraphTitle(parsed);
+}
+
+function renderMeasurementPointTable(parsed) {
+  const selectedSeries = getSelectedSeries(parsed);
+  const points = selectedSeries?.points || [];
+  const visibleRows = points.slice(0, state.visiblePointRows);
+  els.messageType.textContent = selectedSeries ? `${selectedSeries.meteringPoint} - ${selectedSeries.obis}` : "Einzelwerte";
+  updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", "Dritter", ""]);
+  updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, points.length, "Einzelwerte");
+  if (!points.length) return appendEmpty(els.measurementTable, 13);
+
+  const fragment = document.createDocumentFragment();
+  for (const point of visibleRows) {
+    const tr = document.createElement("tr");
+    appendCell(tr, "");
+    appendCell(tr, point.from);
+    appendCell(tr, point.obis, "mono");
+    appendCell(tr, point.from);
+    appendCell(tr, point.to);
+    appendCell(tr, formatNumber(point.quantity), "num");
+    appendCell(tr, point.status || "");
+    appendCell(tr, point.unit || "");
+    appendCell(tr, point.segment, "mono");
+    appendCell(tr, point.sender, "mono");
+    appendCell(tr, point.receiver, "mono");
+    appendCell(tr, point.thirdParty);
+    appendCell(tr, "");
+    fragment.append(tr);
+  }
+  els.measurementTable.append(fragment);
+  updateGraphTitle(parsed);
+}
+
+function updateMeasurementHeader(labels) {
+  const headers = document.querySelectorAll(".measurement-panel thead th");
+  headers.forEach((header, index) => {
+    header.textContent = labels[index] || "";
+  });
 }
 
 function renderSegmentsTable(parsed) {
@@ -1121,13 +1171,25 @@ async function readEdifactFile(file) {
 function resetVisibleRows() {
   state.selectedSeriesKey = "";
   state.selectedSeriesKeys = new Set();
+  state.measurementView = "series";
   state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+  state.visiblePointRows = INITIAL_VISIBLE_ROWS;
   state.visibleBusinessRows = INITIAL_VISIBLE_ROWS;
   state.visibleSegmentRows = INITIAL_VISIBLE_ROWS;
 }
 
 function nextFrame() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function openSeriesDetail(seriesKey) {
+  if (!seriesKey) return;
+  state.selectedSeriesKey = seriesKey;
+  state.measurementView = "points";
+  state.visiblePointRows = INITIAL_VISIBLE_ROWS;
+  renderMeasurementTable(state.parsed);
+  renderTree(state.parsed);
+  renderChart(state.parsed);
 }
 
 function wireEvents() {
@@ -1140,6 +1202,7 @@ function wireEvents() {
   });
   els.businessFilter.addEventListener("input", (event) => {
     state.businessFilter = event.target.value;
+    state.measurementView = "series";
     state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
     renderMeasurementTable(state.parsed);
     renderChart(state.parsed);
@@ -1186,9 +1249,27 @@ function wireEvents() {
   });
 
   els.measurementMore.addEventListener("click", () => {
-    state.visibleMeasurementRows += ROW_LOAD_STEP;
+    if (state.measurementView === "points") {
+      state.visiblePointRows += ROW_LOAD_STEP;
+    } else {
+      state.visibleMeasurementRows += ROW_LOAD_STEP;
+    }
     renderMeasurementTable(state.parsed);
     renderChart(state.parsed);
+  });
+
+  els.treeView.addEventListener("click", (event) => {
+    const node = event.target.closest("[data-series-key]");
+    if (!node) return;
+    openSeriesDetail(node.dataset.seriesKey);
+  });
+
+  els.treeView.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const node = event.target.closest("[data-series-key]");
+    if (!node) return;
+    event.preventDefault();
+    openSeriesDetail(node.dataset.seriesKey);
   });
 
   els.measurementTable.addEventListener("click", (event) => {
@@ -1203,6 +1284,7 @@ function wireEvents() {
       return;
     }
     state.selectedSeriesKey = row.dataset.key || "";
+    state.measurementView = "series";
     renderMeasurementTable(state.parsed);
     renderTree(state.parsed);
     renderChart(state.parsed);

@@ -12,6 +12,7 @@ Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachr
 - Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit `von`, `bis`, `wert` und `status`
 - Die Reiter `EDI Struktur`, `EDI Text` und `MSCONS` schalten die linke Detailansicht um
+- Klick auf einen MSCONS-Lastgang im Baum zeigt oben rechts dessen Einzelwerte
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
 - Exportiert ausgewählte Lastgänge als CSV und die komplette Analyse als JSON
