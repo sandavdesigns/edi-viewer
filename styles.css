@@ -391,7 +391,8 @@ h2 {
 }
 
 .dense table {
-  min-width: 1180px;
+  table-layout: fixed;
+  min-width: 1260px;
 }
 
 table {
@@ -410,7 +411,7 @@ td {
 }
 
 .select-col {
-  width: 76px;
+  width: 52px;
   text-align: center;
 }
 
@@ -452,6 +453,21 @@ td.mono {
 td.num {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.measurement-panel th:nth-child(3),
+.measurement-panel td:nth-child(3) {
+  width: 112px;
+  white-space: nowrap;
+}
+
+.measurement-panel th:nth-child(2),
+.measurement-panel td:nth-child(2) {
+  width: 230px;
+}
+
+.measurement-panel td {
+  white-space: nowrap;
 }
 
 .empty {

@@ -730,11 +730,11 @@ function renderMeasurementTable(parsed) {
     return;
   }
 
-  updateMeasurementHeader(["Auswahl", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger", "Dritter"]);
+  updateMeasurementHeader(["✓", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger"]);
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
-  if (!rows.length) return appendEmpty(els.measurementTable, 13);
+  if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
   if (!selectedExists && visibleRows[0]) state.selectedSeriesKey = visibleRows[0].key;
@@ -764,7 +764,6 @@ function renderMeasurementTable(parsed) {
     appendCell(tr, row.maximumAt);
     appendCell(tr, row.sender, "mono");
     appendCell(tr, row.receiver, "mono");
-    appendCell(tr, row.thirdParty);
     fragment.append(tr);
   }
   els.measurementTable.append(fragment);
@@ -776,9 +775,9 @@ function renderMeasurementPointTable(parsed) {
   const points = selectedSeries?.points || [];
   const visibleRows = points.slice(0, state.visiblePointRows);
   els.messageType.textContent = selectedSeries ? `${selectedSeries.meteringPoint} - ${selectedSeries.obis}` : "Einzelwerte";
-  updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", "Dritter", ""]);
+  updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", ""]);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, points.length, "Einzelwerte");
-  if (!points.length) return appendEmpty(els.measurementTable, 13);
+  if (!points.length) return appendEmpty(els.measurementTable, 12);
 
   const fragment = document.createDocumentFragment();
   for (const point of visibleRows) {
@@ -794,7 +793,6 @@ function renderMeasurementPointTable(parsed) {
     appendCell(tr, point.segment, "mono");
     appendCell(tr, point.sender, "mono");
     appendCell(tr, point.receiver, "mono");
-    appendCell(tr, point.thirdParty);
     appendCell(tr, "");
     fragment.append(tr);
   }
@@ -1081,6 +1079,17 @@ function formatAxisDate(value) {
   return hour ? `${day}.${month}. ${hour}:${minute || "00"}` : `${day}.${month}.`;
 }
 
+function formatDateTime(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 8) return value || "";
+  const year = digits.slice(0, 4);
+  const month = digits.slice(4, 6);
+  const day = digits.slice(6, 8);
+  const hour = digits.slice(8, 10) || "00";
+  const minute = digits.slice(10, 12) || "00";
+  return `${day}.${month}.${year} ${hour}:${minute}`;
+}
+
 function getSelectedSeries(parsed, candidates = null) {
   const rows = candidates || parsed?.measurementSeries || [];
   return rows.find((item) => item.key === state.selectedSeriesKey) || rows[0] || null;
@@ -1123,8 +1132,8 @@ function selectedLoadProfileRows(parsed) {
     row.points.map((point) => ({
       meteringPoint: row.meteringPoint,
       obis: row.obis,
-      from: point.from,
-      to: point.to,
+      from: formatDateTime(point.from),
+      to: formatDateTime(point.to),
       value: point.quantity,
       status: point.status || "",
     })),
