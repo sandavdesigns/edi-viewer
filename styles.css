@@ -390,6 +390,26 @@ h2 {
   width: 138px;
 }
 
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.inline-check input {
+  width: auto;
+  margin: 0;
+}
+
 .facts-list {
   display: grid;
   gap: 0;
@@ -507,6 +527,16 @@ tr.is-selected td {
   background: var(--select);
 }
 
+.summary-row td {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  border-top: 2px solid var(--line-strong);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-weight: 860;
+}
+
 td.mono {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 0.76rem;
@@ -589,6 +619,19 @@ td.num {
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.table-footer > span,
+#measurementCount {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-sum {
+  color: var(--ink);
+  font-weight: 840;
 }
 
 .table-footer[hidden] {

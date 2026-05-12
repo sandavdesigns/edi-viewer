@@ -16,6 +16,7 @@ const state = {
   selectedObis: "",
   dateFrom: "",
   dateTo: "",
+  hideZeroProfiles: false,
   selectedSeriesKey: "",
   selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
@@ -153,6 +154,7 @@ const els = {
   obisFilter: document.querySelector("#obisFilter"),
   dateFromFilter: document.querySelector("#dateFromFilter"),
   dateToFilter: document.querySelector("#dateToFilter"),
+  hideZeroProfiles: document.querySelector("#hideZeroProfiles"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
   treeView: document.querySelector("#treeView"),
   treeToggle: document.querySelector("#treeToggle"),
@@ -1010,7 +1012,7 @@ function renderMeasurementTable(parsed) {
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
   renderSelectAllHeader(rows);
-  updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, rows.length, "Lastgänge");
+  updateMeasurementFooter(visibleRows.length, rows);
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
@@ -1046,6 +1048,7 @@ function renderMeasurementTable(parsed) {
     appendCell(tr, row.receiver, "mono");
     fragment.append(tr);
   }
+  appendMeasurementSummaryRow(fragment, rows);
   els.measurementTable.append(fragment);
   updateGraphTitle(parsed);
 }
@@ -1139,6 +1142,20 @@ function appendCell(row, text, className = "") {
   return td;
 }
 
+function appendMeasurementSummaryRow(fragment, rows) {
+  if (!rows.length) return;
+  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
+  const tr = document.createElement("tr");
+  tr.className = "summary-row";
+  appendCell(tr, "");
+  const label = appendCell(tr, "Summe gefiltert");
+  label.colSpan = 4;
+  appendCell(tr, formatNumber(sum), "num");
+  const rest = appendCell(tr, "");
+  rest.colSpan = 6;
+  fragment.append(tr);
+}
+
 function appendEmpty(target, colspan = 5) {
   const row = els.emptyRowTemplate.content.firstElementChild.cloneNode(true);
   row.firstElementChild.colSpan = colspan;
@@ -1148,6 +1165,19 @@ function appendEmpty(target, colspan = 5) {
 function updateTableFooter(countEl, moreButton, visible, total, label) {
   countEl.textContent = total ? `${visible} von ${total} ${label}` : `0 ${label}`;
   moreButton.toggleAttribute("hidden", visible >= total);
+}
+
+function updateMeasurementFooter(visible, rows) {
+  const total = rows.length;
+  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
+  els.measurementCount.innerHTML = "";
+  const count = document.createElement("span");
+  count.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
+  const totalNode = document.createElement("strong");
+  totalNode.className = "footer-sum";
+  totalNode.textContent = `Summe Menge: ${formatNumber(sum)}`;
+  els.measurementCount.append(count, totalNode);
+  els.measurementMore.toggleAttribute("hidden", visible >= total);
 }
 
 function getFilteredBusinessRows(parsed) {
@@ -1163,6 +1193,7 @@ function getFilteredMeasurementRows(parsed) {
     if (state.selectedMeteringPoint && row.meteringPoint !== state.selectedMeteringPoint) return false;
     if (state.selectedObis && row.obis !== state.selectedObis) return false;
     if ((state.dateFrom || state.dateTo) && !getFilteredSeriesPoints(row).length) return false;
+    if (state.hideZeroProfiles && Math.abs(Number(summarizeSeries(row).quantity) || 0) < 0.000001) return false;
     return includesFilter(row, state.businessFilter);
   }) || [];
 }
@@ -1878,6 +1909,7 @@ function defaultDocumentView() {
     selectedObis: "",
     dateFrom: "",
     dateTo: "",
+    hideZeroProfiles: false,
     selectedSeriesKey: "",
     selectedPointIndex: null,
     selectedSeriesKeys: [],
@@ -1899,6 +1931,7 @@ function currentDocumentView() {
     selectedObis: state.selectedObis,
     dateFrom: state.dateFrom,
     dateTo: state.dateTo,
+    hideZeroProfiles: state.hideZeroProfiles,
     selectedSeriesKey: state.selectedSeriesKey,
     selectedPointIndex: state.selectedPointIndex,
     selectedSeriesKeys: [...state.selectedSeriesKeys],
@@ -1925,6 +1958,7 @@ function applyDocumentView(view) {
     selectedObis: view.selectedObis || "",
     dateFrom: view.dateFrom || "",
     dateTo: view.dateTo || "",
+    hideZeroProfiles: Boolean(view.hideZeroProfiles),
     selectedSeriesKey: view.selectedSeriesKey || "",
     selectedPointIndex: Number.isInteger(view.selectedPointIndex) ? view.selectedPointIndex : null,
     selectedSeriesKeys: new Set(view.selectedSeriesKeys || []),
@@ -1938,6 +1972,7 @@ function applyDocumentView(view) {
   els.businessDetailFilter.value = state.businessDetailFilter;
   els.dateFromFilter.value = state.dateFrom;
   els.dateToFilter.value = state.dateTo;
+  els.hideZeroProfiles.checked = state.hideZeroProfiles;
 }
 
 function saveActiveDocumentState() {
@@ -2041,6 +2076,16 @@ function wireEvents() {
   });
   els.obisFilter.addEventListener("change", (event) => {
     state.selectedObis = event.target.value;
+    state.measurementView = "series";
+    state.selectedPointIndex = null;
+    state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
+    renderMeasurementTable(state.parsed);
+    renderSeriesInsights(state.parsed);
+    renderChart(state.parsed);
+    renderTree(state.parsed);
+  });
+  els.hideZeroProfiles.addEventListener("change", (event) => {
+    state.hideZeroProfiles = event.target.checked;
     state.measurementView = "series";
     state.selectedPointIndex = null;
     state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
