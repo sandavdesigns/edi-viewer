@@ -773,7 +773,7 @@ function includesFilter(value, filter) {
 function renderChart(parsed) {
   const svg = els.chart;
   svg.innerHTML = "";
-  svg.setAttribute("viewBox", "0 0 720 300");
+  svg.setAttribute("viewBox", state.chartMode === "quantities" ? "0 0 720 220" : "0 0 720 300");
 
   if (!parsed) {
     drawEmptyChart(svg);
@@ -855,46 +855,70 @@ function drawMeasurementChart(svg, rows) {
   const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
 
   if (!values.length) {
-    addPlotBackground(svg);
-    addText(svg, 360, 145, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 18, 700);
+    addPlotBackground(svg, 58, 22, 612, 156);
+    addText(svg, 360, 112, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
     return;
   }
 
-  addPlotBackground(svg);
+  const plot = { x: 58, y: 22, width: 612, height: 156 };
+  addPlotBackground(svg, plot.x, plot.y, plot.width, plot.height);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
   const range = max - min || 1;
   const points = values.map((value, index) => {
-    const x = 38 + (index / Math.max(values.length - 1, 1)) * 650;
-    const y = 260 - ((value - min) / range) * 220;
+    const x = plot.x + (index / Math.max(values.length - 1, 1)) * plot.width;
+    const y = plot.y + plot.height - ((value - min) / range) * plot.height;
     return [x, y, value];
   });
+  const baseline = plot.y + plot.height;
+  const linePath = buildStepPath(points);
+  const areaPath = `${linePath} L ${points[points.length - 1][0]} ${baseline} L ${points[0][0]} ${baseline} Z`;
 
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", points.map(([x, y], index) => `${index ? "L" : "M"} ${x} ${y}`).join(" "));
-  path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "var(--accent-2)");
-  path.setAttribute("stroke-width", "2");
-  svg.append(path);
+  addPath(svg, areaPath, "rgba(47, 143, 47, 0.11)", "none", 0);
+  addPath(svg, linePath, "none", "var(--accent-2)", 1.8);
 
-  for (const [x, y] of points.slice(0, 220)) {
-    addCircle(svg, x, y, 2.5, "var(--accent-2)");
-  }
+  const minPoint = points.find((point) => point[2] === min);
+  const maxPoint = points.find((point) => point[2] === max);
+  if (minPoint) addCircle(svg, minPoint[0], minPoint[1], 3, "var(--accent-dark)");
+  if (maxPoint) addCircle(svg, maxPoint[0], maxPoint[1], 3, "var(--accent-dark)");
 
-  addText(svg, 34, 36, compactNumber(max), "end", "#26312c", 11, 700);
-  addText(svg, 34, 263, compactNumber(min), "end", "#26312c", 11, 700);
+  addText(svg, plot.x - 10, plot.y + 5, compactNumber(max), "end", "#26312c", 11, 700);
+  addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "#26312c", 11, 700);
+  addText(svg, plot.x, 204, formatAxisDate(pointsForSeries[0]?.from), "start", "#526059", 11, 650);
+  addText(svg, plot.x + plot.width, 204, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "#526059", 11, 650);
 }
 
-function addPlotBackground(svg) {
-  addRect(svg, 38, 30, 650, 235, "var(--plot)", 0);
-  for (let i = 0; i <= 10; i += 1) {
-    const y = 30 + i * 23.5;
-    addLine(svg, 38, y, 688, y, i % 2 ? "#d5ddc8" : "#bccab5");
+function buildStepPath(points) {
+  if (!points.length) return "";
+  let path = `M ${points[0][0]} ${points[0][1]}`;
+  for (let index = 1; index < points.length; index += 1) {
+    path += ` H ${points[index][0]} V ${points[index][1]}`;
   }
-  for (let i = 0; i <= 12; i += 1) {
-    const x = 38 + i * (650 / 12);
-    addLine(svg, x, 30, x, 265, "#d0d8c4");
+  return path;
+}
+
+function addPlotBackground(svg, x, y, width, height) {
+  addRect(svg, x, y, width, height, "var(--plot)", 0);
+  for (let i = 0; i <= 4; i += 1) {
+    const lineY = y + i * (height / 4);
+    addLine(svg, x, lineY, x + width, lineY, i === 4 ? "#aebdad" : "#d4ddcf", i === 4 ? 1.2 : 0.8);
   }
+  for (let i = 0; i <= 8; i += 1) {
+    const lineX = x + i * (width / 8);
+    addLine(svg, lineX, y, lineX, y + height, "#dce3d7", 0.8);
+  }
+  addLine(svg, x, y, x, y + height, "#aebdad", 1.2);
+}
+
+function addPath(svg, d, fill, stroke, strokeWidth) {
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  path.setAttribute("fill", fill);
+  path.setAttribute("stroke", stroke);
+  path.setAttribute("stroke-width", strokeWidth);
+  path.setAttribute("stroke-linejoin", "round");
+  path.setAttribute("stroke-linecap", "round");
+  svg.append(path);
 }
 
 function addRect(svg, x, y, width, height, fill, rx = 4) {
@@ -908,14 +932,14 @@ function addRect(svg, x, y, width, height, fill, rx = 4) {
   svg.append(rect);
 }
 
-function addLine(svg, x1, y1, x2, y2, stroke) {
+function addLine(svg, x1, y1, x2, y2, stroke, strokeWidth = 1) {
   const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   line.setAttribute("x1", x1);
   line.setAttribute("y1", y1);
   line.setAttribute("x2", x2);
   line.setAttribute("y2", y2);
   line.setAttribute("stroke", stroke);
-  line.setAttribute("stroke-width", "1");
+  line.setAttribute("stroke-width", strokeWidth);
   svg.append(line);
 }
 
@@ -946,6 +970,16 @@ function compactNumber(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 }).format(Number(value) || 0);
+}
+
+function formatAxisDate(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 8) return value || "";
+  const day = digits.slice(6, 8);
+  const month = digits.slice(4, 6);
+  const hour = digits.slice(8, 10);
+  const minute = digits.slice(10, 12);
+  return hour ? `${day}.${month}. ${hour}:${minute || "00"}` : `${day}.${month}.`;
 }
 
 function getSelectedSeries(parsed, candidates = null) {
