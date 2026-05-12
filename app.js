@@ -755,13 +755,13 @@ function renderMeasurementTable(parsed) {
     tr.append(selectCell);
     appendCell(tr, row.meteringPoint);
     appendCell(tr, row.obis, "mono");
-    appendCell(tr, row.from);
-    appendCell(tr, row.to);
+    appendCell(tr, formatDateTime(row.from));
+    appendCell(tr, formatDateTime(row.to));
     appendCell(tr, formatNumber(row.quantity), "num");
     appendCell(tr, formatNumber(row.minimum), "num");
-    appendCell(tr, row.minimumAt);
+    appendCell(tr, formatDateTime(row.minimumAt));
     appendCell(tr, formatNumber(row.maximum), "num");
-    appendCell(tr, row.maximumAt);
+    appendCell(tr, formatDateTime(row.maximumAt));
     appendCell(tr, row.sender, "mono");
     appendCell(tr, row.receiver, "mono");
     fragment.append(tr);
@@ -783,10 +783,10 @@ function renderMeasurementPointTable(parsed) {
   for (const point of visibleRows) {
     const tr = document.createElement("tr");
     appendCell(tr, "");
-    appendCell(tr, point.from);
+    appendCell(tr, formatDateTime(point.from));
     appendCell(tr, point.obis, "mono");
-    appendCell(tr, point.from);
-    appendCell(tr, point.to);
+    appendCell(tr, formatDateTime(point.from));
+    appendCell(tr, formatDateTime(point.to));
     appendCell(tr, formatNumber(point.quantity), "num");
     appendCell(tr, point.status || "");
     appendCell(tr, point.unit || "");
@@ -1097,7 +1097,7 @@ function getSelectedSeries(parsed, candidates = null) {
 
 function updateGraphTitle(parsed) {
   const row = getSelectedSeries(parsed);
-  els.graphTitle.textContent = row ? `${row.meteringPoint} - ${row.obis}: ${row.from} - ${row.to}` : "Lastgang / Mengenverlauf";
+  els.graphTitle.textContent = row ? `${row.meteringPoint} - ${row.obis}: ${formatDateTime(row.from)} - ${formatDateTime(row.to)}` : "Lastgang / Mengenverlauf";
 }
 
 function download(filename, mimeType, content) {
