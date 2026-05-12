@@ -139,7 +139,6 @@ const els = {
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
-  measurementBack: document.querySelector("#measurementBack"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
@@ -602,7 +601,7 @@ function renderTree(parsed) {
   }
 
   const fragment = document.createDocumentFragment();
-  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", true);
+  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", state.measurementView === "series", "", true);
   fragment.append(root);
 
   const groups = groupMeasurements(parsed.measurementSeries);
@@ -628,10 +627,14 @@ function updateTreePanelState() {
   els.treeToggle.setAttribute("aria-expanded", String(!state.treeCollapsed));
 }
 
-function treeNode(level, icon, label, selected, seriesKey = "") {
+function treeNode(level, icon, label, selected, seriesKey = "", isRoot = false) {
   const node = document.createElement("div");
   node.className = `tree-node${selected ? " is-selected" : ""}`;
   node.style.setProperty("--level", String(level));
+  if (isRoot) {
+    node.dataset.rootNode = "true";
+    node.tabIndex = 0;
+  }
   if (seriesKey) {
     node.dataset.seriesKey = seriesKey;
     node.tabIndex = 0;
@@ -709,7 +712,6 @@ function renderMeasurementTable(parsed) {
   }
 
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "MSCONS";
-  els.measurementBack.hidden = true;
   updateMeasurementHeader(["✓", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger"]);
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
@@ -755,7 +757,6 @@ function renderMeasurementPointTable(parsed) {
   const points = selectedSeries?.points || [];
   const visibleRows = points.slice(0, state.visiblePointRows);
   els.messageType.textContent = selectedSeries ? `${selectedSeries.meteringPoint} - ${selectedSeries.obis}` : "Einzelwerte";
-  els.measurementBack.hidden = false;
   updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", ""]);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, points.length, "Einzelwerte");
   if (!points.length) return appendEmpty(els.measurementTable, 12);
@@ -1182,6 +1183,13 @@ function openSeriesDetail(seriesKey) {
   renderChart(state.parsed);
 }
 
+function openSeriesList() {
+  state.measurementView = "series";
+  renderMeasurementTable(state.parsed);
+  renderTree(state.parsed);
+  renderChart(state.parsed);
+}
+
 function wireEvents() {
   els.fileInput.addEventListener("change", (event) => handleFile(event.target.files[0]));
   els.fileInputSecondary.addEventListener("change", (event) => handleFile(event.target.files[0]));
@@ -1211,13 +1219,6 @@ function wireEvents() {
   els.treeToggle.addEventListener("click", () => {
     state.treeCollapsed = !state.treeCollapsed;
     updateTreePanelState();
-  });
-
-  els.measurementBack.addEventListener("click", () => {
-    state.measurementView = "series";
-    renderMeasurementTable(state.parsed);
-    renderChart(state.parsed);
-    renderTree(state.parsed);
   });
 
   for (const eventName of ["dragenter", "dragover"]) {
@@ -1254,6 +1255,11 @@ function wireEvents() {
   });
 
   els.treeView.addEventListener("click", (event) => {
+    const root = event.target.closest("[data-root-node]");
+    if (root) {
+      openSeriesList();
+      return;
+    }
     const node = event.target.closest("[data-series-key]");
     if (!node) return;
     openSeriesDetail(node.dataset.seriesKey);
@@ -1261,6 +1267,12 @@ function wireEvents() {
 
   els.treeView.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
+    const root = event.target.closest("[data-root-node]");
+    if (root) {
+      event.preventDefault();
+      openSeriesList();
+      return;
+    }
     const node = event.target.closest("[data-series-key]");
     if (!node) return;
     event.preventDefault();

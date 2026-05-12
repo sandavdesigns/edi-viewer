@@ -349,15 +349,18 @@ body.is-tree-collapsed .tree-toggle::before {
   color: #26312c;
 }
 
-.tree-node[data-series-key] {
+.tree-node[data-series-key],
+.tree-node[data-root-node] {
   cursor: pointer;
 }
 
-.tree-node[data-series-key]:hover {
+.tree-node[data-series-key]:hover,
+.tree-node[data-root-node]:hover {
   background: #edf8f9;
 }
 
-.tree-node[data-series-key]:focus-visible {
+.tree-node[data-series-key]:focus-visible,
+.tree-node[data-root-node]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }

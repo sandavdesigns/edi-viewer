@@ -13,6 +13,7 @@ Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachr
 - Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit formatierten `von`/`bis`-Zeitpunkten, `wert` und `status`
 - Der MSCONS-Baum ist einklappbar und dient als Navigation in die einzelnen Lastgänge
 - Klick auf einen MSCONS-Lastgang im Baum zeigt oben rechts dessen Einzelwerte
+- Klick auf den Dateinamen im Baum führt zurück zur Lastgangliste
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
 - Exportiert ausgewählte Lastgänge als CSV und die komplette Analyse als JSON
