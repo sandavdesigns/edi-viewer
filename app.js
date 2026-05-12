@@ -7,7 +7,7 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
-  leftTab: "mscons",
+  treeCollapsed: false,
   measurementView: "series",
   selectedSeriesKey: "",
   selectedSeriesKeys: new Set(),
@@ -135,9 +135,11 @@ const els = {
   businessFilter: document.querySelector("#businessFilter"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
   treeView: document.querySelector("#treeView"),
+  treeToggle: document.querySelector("#treeToggle"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
+  measurementBack: document.querySelector("#measurementBack"),
   graphTitle: document.querySelector("#graphTitle"),
   windowTitle: document.querySelector("#windowTitle"),
   segmentsTable: document.querySelector("#segmentsTable"),
@@ -589,7 +591,7 @@ function renderFacts(parsed) {
 
 function renderTree(parsed) {
   els.treeView.innerHTML = "";
-  updateLeftTabs();
+  updateTreePanelState();
   if (!parsed) {
     const empty = document.createElement("div");
     empty.className = "tree-node";
@@ -599,33 +601,9 @@ function renderTree(parsed) {
     return;
   }
 
-  if (state.leftTab === "text") {
-    const text = document.createElement("pre");
-    text.className = "edi-text-view";
-    text.textContent = parsed.rawText.replace(/'/g, "'\n");
-    els.treeView.append(text);
-    return;
-  }
-
   const fragment = document.createDocumentFragment();
   const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", true);
   fragment.append(root);
-
-  if (state.leftTab === "structure") {
-    const messages = parsed.segments.filter((segment) => segment.tag === "UNH");
-    if (messages.length) {
-      for (const message of messages.slice(0, 300)) {
-        const type = message.elements[1]?.[0] || "Nachricht";
-        fragment.append(treeNode(1, "▸", `${message.index} ${type} - ${describeMessageType(type)}`, false));
-      }
-    } else {
-      for (const segment of parsed.segments.slice(0, 500)) {
-        fragment.append(treeNode(1, "•", `${segment.index} ${segment.tag} - ${segment.label}`, false));
-      }
-    }
-    els.treeView.append(fragment);
-    return;
-  }
 
   const groups = groupMeasurements(parsed.measurementSeries);
   for (const [meteringPoint, rows] of groups) {
@@ -644,10 +622,10 @@ function renderTree(parsed) {
   els.treeView.append(fragment);
 }
 
-function updateLeftTabs() {
-  document.querySelectorAll("[data-left-tab]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.leftTab === state.leftTab);
-  });
+function updateTreePanelState() {
+  document.body.classList.toggle("is-tree-collapsed", state.treeCollapsed);
+  els.treeToggle.textContent = state.treeCollapsed ? "MSCONS anzeigen" : "MSCONS";
+  els.treeToggle.setAttribute("aria-expanded", String(!state.treeCollapsed));
 }
 
 function treeNode(level, icon, label, selected, seriesKey = "") {
@@ -730,6 +708,8 @@ function renderMeasurementTable(parsed) {
     return;
   }
 
+  els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "MSCONS";
+  els.measurementBack.hidden = true;
   updateMeasurementHeader(["✓", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger"]);
   const rows = getFilteredMeasurementRows(parsed);
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
@@ -775,6 +755,7 @@ function renderMeasurementPointTable(parsed) {
   const points = selectedSeries?.points || [];
   const visibleRows = points.slice(0, state.visiblePointRows);
   els.messageType.textContent = selectedSeries ? `${selectedSeries.meteringPoint} - ${selectedSeries.obis}` : "Einzelwerte";
+  els.measurementBack.hidden = false;
   updateMeasurementHeader(["", "Zeitpunkt", "OBIS", "von", "bis", "Wert", "Status", "Einheit", "Segment", "Absender", "Empfänger", ""]);
   updateTableFooter(els.measurementCount, els.measurementMore, visibleRows.length, points.length, "Einzelwerte");
   if (!points.length) return appendEmpty(els.measurementTable, 12);
@@ -1227,11 +1208,16 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
-  document.querySelectorAll("[data-left-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.leftTab = button.dataset.leftTab || "structure";
-      renderTree(state.parsed);
-    });
+  els.treeToggle.addEventListener("click", () => {
+    state.treeCollapsed = !state.treeCollapsed;
+    updateTreePanelState();
+  });
+
+  els.measurementBack.addEventListener("click", () => {
+    state.measurementView = "series";
+    renderMeasurementTable(state.parsed);
+    renderChart(state.parsed);
+    renderTree(state.parsed);
   });
 
   for (const eventName of ["dragenter", "dragover"]) {

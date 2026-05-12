@@ -37,12 +37,6 @@
 
       <section class="viewer-shell">
         <aside class="left-pane">
-          <div class="tab-strip">
-            <button class="tab is-active" type="button" data-left-tab="structure">EDI Struktur</button>
-            <button class="tab" type="button" data-left-tab="text">EDI Text</button>
-            <button class="tab" type="button" data-left-tab="mscons">MSCONS</button>
-          </div>
-
           <section class="panel properties-panel" aria-live="polite">
             <div class="panel-heading">
               <h2>Eigenschaften</h2>
@@ -53,7 +47,7 @@
 
           <section class="panel tree-panel">
             <div class="panel-heading">
-              <h2>Nachrichtenbaum</h2>
+              <button id="treeToggle" class="tree-toggle" type="button" aria-expanded="true">MSCONS</button>
               <span id="segmentCount">0 Segmente</span>
             </div>
             <div id="treeView" class="tree-view"></div>
@@ -91,6 +85,7 @@
               </table>
             </div>
             <div class="table-footer">
+              <button id="measurementBack" class="secondary-button" type="button" hidden>Zur Lastgangliste</button>
               <span id="measurementCount">0 Lastgänge</span>
               <button id="measurementMore" class="secondary-button" type="button">Mehr laden</button>
             </div>

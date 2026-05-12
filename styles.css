@@ -186,7 +186,7 @@ h2 {
 
 .viewer-shell {
   display: grid;
-  grid-template-columns: 500px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
   overflow: hidden;
@@ -200,7 +200,7 @@ h2 {
 
 .left-pane {
   display: grid;
-  grid-template-rows: auto 250px minmax(0, 1fr);
+  grid-template-rows: 220px minmax(0, 1fr);
   gap: 6px;
   min-height: 0;
 }
@@ -216,27 +216,6 @@ h2 {
   display: none;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 8px;
-}
-
-.tab-strip {
-  display: flex;
-  gap: 2px;
-  min-width: 0;
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.tab {
-  min-height: 34px;
-  padding: 0 12px;
-  border-bottom: 0;
-  border-radius: 7px 7px 0 0;
-  background: #edf1ef;
-  font-size: 0.84rem;
-}
-
-.tab.is-active {
-  background: var(--surface);
-  color: var(--accent-dark);
 }
 
 .panel {
@@ -321,6 +300,35 @@ h2 {
 
 .tree-panel {
   min-height: 0;
+}
+
+.tree-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 820;
+  padding: 0;
+}
+
+.tree-toggle::before {
+  content: "▾";
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--accent-dark);
+}
+
+body.is-tree-collapsed .left-pane {
+  grid-template-rows: 220px auto;
+}
+
+body.is-tree-collapsed .tree-view {
+  display: none;
+}
+
+body.is-tree-collapsed .tree-toggle::before {
+  content: "▸";
 }
 
 .tree-view {
@@ -463,7 +471,7 @@ td.num {
 
 .measurement-panel th:nth-child(2),
 .measurement-panel td:nth-child(2) {
-  width: 185px;
+  width: 250px;
 }
 
 .measurement-panel td {
