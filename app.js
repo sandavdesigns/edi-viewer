@@ -30,6 +30,17 @@ const ROW_LOAD_STEP = 500;
 const MEASUREMENT_CHART_WIDTH = 1100;
 const MEASUREMENT_PLOT = { x: 44, y: 18, width: 1018, height: 162 };
 const THEME_STORAGE_KEY = "edi-viewer-theme";
+const MARKET_TIME_ZONE = "Europe/Berlin";
+const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
+  timeZone: MARKET_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+const marketDateTimeCache = new Map();
 const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
 
 const SEGMENT_LABELS = {
@@ -291,7 +302,8 @@ function extractBusinessRows(segments) {
     }
 
     if (segment.tag === "DTM") {
-      rows.push(makeRow("Datum", qualifier, formatEdifactDate(value, first[2]), qualifierLabel("DTM", qualifier), segment));
+      const dtm = dtmParts(segment);
+      rows.push(makeRow("Datum", dtm.qualifier, formatEdifactDate(dtm.value, dtm.format), qualifierLabel("DTM", dtm.qualifier), segment));
     }
 
     if (segment.tag === "NAD") {
@@ -342,6 +354,15 @@ function makeRow(type, qualifier, value, extra, segment) {
     value: value || "",
     extra: extra || "",
     segment: `${segment.index} ${segment.tag}`,
+  };
+}
+
+function dtmParts(segment) {
+  const first = segment.elements[0] || [];
+  return {
+    qualifier: first[0] || "",
+    value: first[1] || "",
+    format: first[2] || segment.elements[1]?.[1] || "",
   };
 }
 
@@ -428,14 +449,12 @@ function extractMeasurementRows(segments, facts) {
     }
 
     if (segment.tag === "DTM") {
-      const qualifier = segment.elements[0]?.[0] || "";
-      const value = segment.elements[0]?.[1] || "";
-      const format = segment.elements[0]?.[2] || "";
+      const { qualifier, value, format } = dtmParts(segment);
       const formatted = formatEdifactDate(value, format);
       const target = pending || context;
       if (["163", "324", "157"].includes(qualifier)) target.start = formatted;
       if (["164", "158"].includes(qualifier)) target.end = formatted;
-      if (format === "718" && value.includes("-")) {
+      if (["718", "719"].includes(format) && splitEdifactDateRange(value)) {
         const [start, end] = formatted.split(" bis ");
         target.start = start || target.start;
         target.end = end || target.end;
@@ -528,9 +547,7 @@ function extractAlocatRows(segments, facts) {
     }
 
     if (segment.tag === "DTM") {
-      const qualifier = segment.elements[0]?.[0] || "";
-      const value = segment.elements[0]?.[1] || "";
-      const format = segment.elements[0]?.[2] || "";
+      const { qualifier, value, format } = dtmParts(segment);
       const range = ["2", "Z01"].includes(qualifier) ? splitEdifactDateRange(value) : null;
       if (range) {
         const formatted = range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102"));
@@ -673,14 +690,37 @@ function qualifierLabel(segment, qualifier) {
 
 function formatEdifactDate(value, format) {
   if (!value) return "";
-  if (format === "102" && /^\d{8}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)}`;
-  if (format === "203" && /^\d{12}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)} ${value.slice(8, 10)}:${value.slice(10, 12)}`;
-  if (format === "303" && /^\d{14}$/.test(value)) return `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)} ${value.slice(8, 10)}:${value.slice(10, 12)}:${value.slice(12, 14)}`;
+  const digits = String(value).replace(/\D/g, "");
+  if (format === "102" && digits.length >= 8) return `${digits.slice(6, 8)}.${digits.slice(4, 6)}.${digits.slice(0, 4)}`;
+  if (format === "203" && digits.length >= 12) return formatUtcMarketDateTime(digits.slice(0, 12));
+  if (format === "303" && digits.length >= 12) return formatUtcMarketDateTime(digits.slice(0, 14));
   if (["718", "719"].includes(format)) {
     const range = splitEdifactDateRange(value);
     if (range) return range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102")).join(" bis ");
   }
   return value;
+}
+
+function formatUtcMarketDateTime(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length < 12) return value || "";
+  const cacheKey = digits.slice(0, 14);
+  if (marketDateTimeCache.has(cacheKey)) return marketDateTimeCache.get(cacheKey);
+  const date = new Date(Date.UTC(
+    Number(digits.slice(0, 4)),
+    Number(digits.slice(4, 6)) - 1,
+    Number(digits.slice(6, 8)),
+    Number(digits.slice(8, 10)),
+    Number(digits.slice(10, 12)),
+    Number(digits.slice(12, 14) || 0),
+  ));
+  const parts = marketDateTimeFormatter.formatToParts(date).reduce((result, part) => {
+    result[part.type] = part.value;
+    return result;
+  }, {});
+  const formatted = `${parts.day}.${parts.month}.${parts.year} ${parts.hour}:${parts.minute}`;
+  marketDateTimeCache.set(cacheKey, formatted);
+  return formatted;
 }
 
 function splitEdifactDateRange(value) {
