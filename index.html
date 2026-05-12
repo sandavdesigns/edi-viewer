@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EDI Viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">EDIFACT Viewer</p>
+        <h1>Deutscher Strom- und Gasmarkt</h1>
+      </div>
+      <div class="header-actions">
+        <label class="icon-button" title="EDIFACT-Datei öffnen">
+          <span aria-hidden="true">↥</span>
+          <input id="fileInput" type="file" accept=".edi,.edifact,.txt,.unb,.dat" hidden />
+        </label>
+        <button id="exportSegments" class="icon-button" type="button" title="Segmenttabelle als CSV exportieren">CSV</button>
+        <button id="exportBusiness" class="icon-button" type="button" title="Geschäftsdaten als CSV exportieren">DAT</button>
+        <button id="exportJson" class="icon-button" type="button" title="Analyse als JSON exportieren">JS</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="drop-zone" id="dropZone">
+        <div>
+          <strong>Datei hier ablegen oder öffnen</strong>
+          <span>Unterstützt EDIFACT/EDI mit UNA, UNB, UNH, UTILMD, MSCONS, INVOIC, REMADV, APERAK, CONTRL und weiteren deutschen Energiemarkt-Nachrichten.</span>
+        </div>
+        <label class="primary-button">
+          Datei wählen
+          <input id="fileInputSecondary" type="file" accept=".edi,.edifact,.txt,.unb,.dat" hidden />
+        </label>
+      </section>
+
+      <section class="summary-grid" aria-live="polite">
+        <article>
+          <span>Datei</span>
+          <strong id="fileName">Noch keine Datei</strong>
+        </article>
+        <article>
+          <span>Nachrichtentyp</span>
+          <strong id="messageType">-</strong>
+        </article>
+        <article>
+          <span>Segmente</span>
+          <strong id="segmentCount">0</strong>
+        </article>
+        <article>
+          <span>Prüfung</span>
+          <strong id="validationState">Bereit</strong>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <aside class="panel facts-panel">
+          <div class="panel-heading">
+            <h2>Kerndaten</h2>
+          </div>
+          <dl id="factsList" class="facts-list"></dl>
+        </aside>
+
+        <section class="panel chart-panel">
+          <div class="panel-heading">
+            <h2>Struktur</h2>
+            <select id="chartMode" aria-label="Grafikmodus">
+              <option value="segments">Segmentverteilung</option>
+              <option value="quantities">Mengen/Zeitpunkte</option>
+            </select>
+          </div>
+          <div class="chart-wrap">
+            <svg id="chart" role="img" aria-label="EDIFACT-Grafik"></svg>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading table-heading">
+          <h2>Geschäftsdaten</h2>
+          <input id="businessFilter" type="search" placeholder="Filtern" aria-label="Geschäftsdaten filtern" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Typ</th>
+                <th>Qualifier</th>
+                <th>Wert</th>
+                <th>Zusatz</th>
+                <th>Segment</th>
+              </tr>
+            </thead>
+            <tbody id="businessTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading table-heading">
+          <h2>Segmente</h2>
+          <input id="segmentFilter" type="search" placeholder="UNH, NAD, LOC..." aria-label="Segmente filtern" />
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tag</th>
+                <th>Beschreibung</th>
+                <th>Elemente</th>
+                <th>Rohsegment</th>
+              </tr>
+            </thead>
+            <tbody id="segmentsTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <template id="emptyRowTemplate">
+      <tr>
+        <td colspan="5" class="empty">Noch keine Daten geladen.</td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
