@@ -13,6 +13,7 @@
         <h1 id="windowTitle">Deutscher Strom- und Gasmarkt</h1>
       </div>
       <div class="header-actions">
+        <button id="infoOpen" class="secondary-button" type="button">MSCONS Info</button>
         <label class="icon-button" title="EDIFACT-Datei öffnen">
           <span aria-hidden="true">↥</span>
           <input id="fileInput" type="file" accept=".edi,.edifact,.txt,.unb,.dat" hidden />
@@ -36,24 +37,6 @@
       </section>
 
       <section class="viewer-shell">
-        <aside class="left-pane">
-          <section class="panel properties-panel" aria-live="polite">
-            <div class="panel-heading">
-              <h2>Eigenschaften</h2>
-              <strong id="validationState">Bereit</strong>
-            </div>
-            <dl id="factsList" class="facts-list property-grid"></dl>
-          </section>
-
-          <section class="panel tree-panel">
-            <div class="panel-heading">
-              <button id="treeToggle" class="tree-toggle" type="button" aria-expanded="true">MSCONS</button>
-              <span id="segmentCount">0 Segmente</span>
-            </div>
-            <div id="treeView" class="tree-view"></div>
-          </section>
-        </aside>
-
         <section class="right-pane">
           <section class="panel measurement-panel">
             <div class="panel-heading table-heading">
@@ -153,6 +136,23 @@
         </section>
       </section>
     </main>
+
+    <dialog id="infoDialog" class="info-dialog">
+      <div class="modal-panel">
+        <div class="modal-heading">
+          <div>
+            <h2>MSCONS Info</h2>
+            <span id="segmentCount">0 Segmente</span>
+          </div>
+          <button id="infoClose" class="icon-button" type="button" aria-label="Info schließen">×</button>
+        </div>
+        <div class="info-status">
+          <span>Prüfung</span>
+          <strong id="validationState">Bereit</strong>
+        </div>
+        <dl id="factsList" class="facts-list property-grid"></dl>
+      </div>
+    </dialog>
 
     <template id="emptyRowTemplate">
       <tr>

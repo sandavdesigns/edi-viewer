@@ -8,12 +8,10 @@ Browserbasierter EDIFACT-Viewer für gängige deutsche Strom- und Gasmarkt-Nachr
 - Unterstützt EDIFACT-Servicezeichen aus `UNA`
 - Liest Segmentstrukturen wie `UNB`, `UNH`, `BGM`, `DTM`, `NAD`, `LOC`, `RFF`, `QTY`, `MOA`, `PRI`, `UNT`, `UNZ`
 - Erkennt gängige Nachrichtentypen wie `UTILMD`, `MSCONS`, `INVOIC`, `REMADV`, `APERAK`, `CONTRL`, `PRICAT`, `ORDERS`, `ORDRSP`, `QUOTES` und `REQOTE`
-- Zeigt eine moderne Split-View mit Dateieigenschaften, Nachrichtenbaum, MSCONS-Messwerttabelle, Geschäftsdaten, Segmenttabelle und SVG-Grafiken
+- Zeigt eine moderne Arbeitsansicht mit MSCONS-Messwerttabelle, Lastgang-Grafik und kompaktem Info-Modal
 - Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit formatierten `von`/`bis`-Zeitpunkten, `wert` und `status`
-- Der MSCONS-Baum ist einklappbar und dient als Navigation in die einzelnen Lastgänge
-- Klick auf einen MSCONS-Lastgang im Baum zeigt oben rechts dessen Einzelwerte
-- Klick auf den Dateinamen im Baum führt zurück zur Lastgangliste
+- Der Button `MSCONS Info` öffnet wichtige Dateieigenschaften und Prüfhinweise als Modal
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
 - Exportiert ausgewählte Lastgänge als CSV und die komplette Analyse als JSON

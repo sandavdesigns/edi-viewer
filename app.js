@@ -7,7 +7,6 @@ const state = {
   businessFilter: "",
   businessDetailFilter: "",
   chartMode: "quantities",
-  treeCollapsed: false,
   measurementView: "series",
   selectedSeriesKey: "",
   selectedSeriesKeys: new Set(),
@@ -134,8 +133,9 @@ const els = {
   segmentFilter: document.querySelector("#segmentFilter"),
   businessFilter: document.querySelector("#businessFilter"),
   businessDetailFilter: document.querySelector("#businessDetailFilter"),
-  treeView: document.querySelector("#treeView"),
-  treeToggle: document.querySelector("#treeToggle"),
+  infoOpen: document.querySelector("#infoOpen"),
+  infoClose: document.querySelector("#infoClose"),
+  infoDialog: document.querySelector("#infoDialog"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
   measurementMore: document.querySelector("#measurementMore"),
@@ -555,7 +555,6 @@ function render() {
   els.validationState.style.color = parsed ? (parsed.validation.ok ? "var(--accent-3)" : "var(--danger)") : "var(--muted)";
 
   renderFacts(parsed);
-  renderTree(parsed);
   renderMeasurementTable(parsed);
   renderBusinessTable(parsed);
   renderSegmentsTable(parsed);
@@ -586,67 +585,6 @@ function renderFacts(parsed) {
   for (const [label, value] of facts) {
     els.factsList.append(factNode(label, value));
   }
-}
-
-function renderTree(parsed) {
-  els.treeView.innerHTML = "";
-  updateTreePanelState();
-  if (!parsed) {
-    const empty = document.createElement("div");
-    empty.className = "tree-node";
-    empty.style.setProperty("--level", "0");
-    empty.innerHTML = '<span class="tree-icon">•</span><span class="tree-label">Noch keine Datei geladen</span>';
-    els.treeView.append(empty);
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-  const root = treeNode(0, "▾", state.fileName || "EDIFACT-Datei", state.measurementView === "series", "", true);
-  fragment.append(root);
-
-  const groups = groupMeasurements(parsed.measurementSeries);
-  for (const [meteringPoint, rows] of groups) {
-    fragment.append(treeNode(1, "▾", `${meteringPoint} - ${rows.length} OBIS`, false));
-    for (const row of rows) {
-      fragment.append(treeNode(2, "▸", `${row.obis} - ${row.pointCount} Werte - ${formatNumber(row.quantity)}`, row.key === getSelectedSeries(parsed)?.key, row.key));
-    }
-  }
-
-  if (!groups.size) {
-    for (const segment of parsed.segments.slice(0, 300)) {
-      fragment.append(treeNode(1, "•", `${segment.index} ${segment.tag} - ${segment.label}`, false));
-    }
-  }
-
-  els.treeView.append(fragment);
-}
-
-function updateTreePanelState() {
-  document.body.classList.toggle("is-tree-collapsed", state.treeCollapsed);
-  els.treeToggle.textContent = state.treeCollapsed ? "MSCONS anzeigen" : "MSCONS";
-  els.treeToggle.setAttribute("aria-expanded", String(!state.treeCollapsed));
-}
-
-function treeNode(level, icon, label, selected, seriesKey = "", isRoot = false) {
-  const node = document.createElement("div");
-  node.className = `tree-node${selected ? " is-selected" : ""}`;
-  node.style.setProperty("--level", String(level));
-  if (isRoot) {
-    node.dataset.rootNode = "true";
-    node.tabIndex = 0;
-  }
-  if (seriesKey) {
-    node.dataset.seriesKey = seriesKey;
-    node.tabIndex = 0;
-  }
-  const iconNode = document.createElement("span");
-  iconNode.className = "tree-icon";
-  iconNode.textContent = icon;
-  const labelNode = document.createElement("span");
-  labelNode.className = "tree-label";
-  labelNode.textContent = label;
-  node.append(iconNode, labelNode);
-  return node;
 }
 
 function groupMeasurements(rows) {
@@ -1179,14 +1117,12 @@ function openSeriesDetail(seriesKey) {
   state.measurementView = "points";
   state.visiblePointRows = INITIAL_VISIBLE_ROWS;
   renderMeasurementTable(state.parsed);
-  renderTree(state.parsed);
   renderChart(state.parsed);
 }
 
 function openSeriesList() {
   state.measurementView = "series";
   renderMeasurementTable(state.parsed);
-  renderTree(state.parsed);
   renderChart(state.parsed);
 }
 
@@ -1204,7 +1140,6 @@ function wireEvents() {
     state.visibleMeasurementRows = INITIAL_VISIBLE_ROWS;
     renderMeasurementTable(state.parsed);
     renderChart(state.parsed);
-    renderTree(state.parsed);
   });
   els.businessDetailFilter.addEventListener("input", (event) => {
     state.businessDetailFilter = event.target.value;
@@ -1216,9 +1151,20 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
-  els.treeToggle.addEventListener("click", () => {
-    state.treeCollapsed = !state.treeCollapsed;
-    updateTreePanelState();
+  els.infoOpen.addEventListener("click", () => {
+    if (typeof els.infoDialog.showModal === "function") {
+      els.infoDialog.showModal();
+    } else {
+      els.infoDialog.setAttribute("open", "");
+    }
+  });
+
+  els.infoClose.addEventListener("click", () => {
+    els.infoDialog.close();
+  });
+
+  els.infoDialog.addEventListener("click", (event) => {
+    if (event.target === els.infoDialog) els.infoDialog.close();
   });
 
   for (const eventName of ["dragenter", "dragover"]) {
@@ -1254,31 +1200,6 @@ function wireEvents() {
     renderChart(state.parsed);
   });
 
-  els.treeView.addEventListener("click", (event) => {
-    const root = event.target.closest("[data-root-node]");
-    if (root) {
-      openSeriesList();
-      return;
-    }
-    const node = event.target.closest("[data-series-key]");
-    if (!node) return;
-    openSeriesDetail(node.dataset.seriesKey);
-  });
-
-  els.treeView.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    const root = event.target.closest("[data-root-node]");
-    if (root) {
-      event.preventDefault();
-      openSeriesList();
-      return;
-    }
-    const node = event.target.closest("[data-series-key]");
-    if (!node) return;
-    event.preventDefault();
-    openSeriesDetail(node.dataset.seriesKey);
-  });
-
   els.measurementTable.addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-key]");
     if (!row) return;
@@ -1293,8 +1214,13 @@ function wireEvents() {
     state.selectedSeriesKey = row.dataset.key || "";
     state.measurementView = "series";
     renderMeasurementTable(state.parsed);
-    renderTree(state.parsed);
     renderChart(state.parsed);
+  });
+
+  els.measurementTable.addEventListener("dblclick", (event) => {
+    const row = event.target.closest("tr[data-key]");
+    if (!row || event.target.classList.contains("row-check")) return;
+    openSeriesDetail(row.dataset.key);
   });
 
   els.segmentsMore.addEventListener("click", () => {
