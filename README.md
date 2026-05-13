@@ -47,10 +47,10 @@ Ohne Variable nutzt der Stack weiter Port `8080`.
 Optional kann ein Branding gesetzt werden. Ohne diese Variablen bleibt die App im Standarddesign.
 
 ```bash
-APP_THEME=gotha APP_NAME="Stadtwerke Gotha" docker compose up -d
+APP_THEME=energie APP_NAME="Energieportal" docker compose up -d
 ```
 
-`APP_THEME=gotha` aktiviert ein helles und dunkles Theme auf Basis der Gothaer-Stadtwerke-Energie-Farben. `APP_NAME` ergänzt den Titel oben zu `EDIFACT Lastgang Viewer - <Name>`.
+`APP_THEME=energie` aktiviert ein helles und dunkles Energie-Branding. `APP_NAME` ergänzt den Titel oben zu `EDIFACT Lastgang Viewer - <Name>`.
 
 Aktualisieren auf den neuesten Stand:
 
@@ -73,8 +73,8 @@ Am einfachsten wird das öffentliche GitHub-Repository direkt als Stack verwende
 
 ```text
 APP_PORT=8090
-APP_THEME=gotha
-APP_NAME=Stadtwerke Gotha
+APP_THEME=energie
+APP_NAME=Energieportal
 ```
 
 8. Stack deployen.
@@ -92,11 +92,11 @@ Der Container selbst hört intern auf Port `80`; `APP_PORT` ändert nur den exte
 ### Branding ändern
 
 ```text
-APP_THEME=gotha
-APP_NAME=Stadtwerke Gotha
+APP_THEME=energie
+APP_NAME=Energieportal
 ```
 
-`APP_THEME=gotha` nutzt ein helles und dunkles Farbschema nach den Gothaer-Stadtwerke-Energie-Farben. Der vorhandene Umschalter **Auto/Hell/Dunkel** bleibt erhalten. `APP_NAME` ergänzt den Kopfbereich und den Browser-Titel. Wenn `APP_THEME` und `APP_NAME` leer bleiben, wird das Standarddesign verwendet.
+`APP_THEME=energie` nutzt ein helles und dunkles Energie-Farbschema. Der vorhandene Umschalter **Auto/Hell/Dunkel** bleibt erhalten. `APP_NAME` ergänzt den Kopfbereich und den Browser-Titel. Wenn `APP_THEME` und `APP_NAME` leer bleiben, wird das Standarddesign verwendet.
 
 Nach einer Änderung der Environment Variables muss der Stack in Portainer neu deployed werden. Falls der Browser noch das alte Design zeigt, einmal hart neu laden oder den Browser-Cache für die Seite leeren.
 

@@ -59,8 +59,8 @@ docker-compose.yml
 
 ```text
 APP_PORT=8090
-APP_THEME=gotha
-APP_NAME=Stadtwerke Gotha
+APP_THEME=energie
+APP_NAME=Energieportal
 ```
 
 8. Stack deployen.
@@ -92,10 +92,10 @@ APP_PORT=8090 docker compose up -d
 | Variable | Beispiel | Beschreibung |
 | --- | --- | --- |
 | `APP_PORT` | `8090` | Externer Host-Port. Intern hört nginx auf Port `80`. |
-| `APP_THEME` | `gotha` | Optionales Branding-Theme. Leer lassen für Standarddesign. |
-| `APP_NAME` | `Stadtwerke Gotha` | Optionaler Name im Kopfbereich und Browser-Titel. |
+| `APP_THEME` | `energie` | Optionales Branding-Theme. Leer lassen für Standarddesign. |
+| `APP_NAME` | `Energieportal` | Optionaler Name im Kopfbereich und Browser-Titel. |
 
-`APP_THEME=gotha` aktiviert ein helles und dunkles Farbschema auf Basis der Gothaer-Stadtwerke-Energie-Farben. Der Umschalter **Auto/Hell/Dunkel** bleibt für Anwender erhalten.
+`APP_THEME=energie` aktiviert ein helles und dunkles Energie-Farbschema. Der Umschalter **Auto/Hell/Dunkel** bleibt für Anwender erhalten.
 
 Wenn `APP_THEME` und `APP_NAME` leer bleiben, verhält sich die App wie im Standardzustand.
 

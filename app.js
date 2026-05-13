@@ -2293,7 +2293,7 @@ function readStoredTheme() {
 
 function normalizeRuntimeConfig(config) {
   const rawTheme = String(config?.theme || "").trim().toLowerCase();
-  const theme = ["gotha", "gothaer", "stadtwerke-gotha", "gothaer-stadtwerke"].includes(rawTheme) ? "gotha" : "";
+  const theme = ["energie", "energy", "brand", "custom"].includes(rawTheme) ? "energie" : "";
   const name = String(config?.name || "").trim();
   return { theme, name };
 }

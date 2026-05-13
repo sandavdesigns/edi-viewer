@@ -68,7 +68,7 @@ body[data-theme="dark"] {
   --hover-soft: rgba(26, 164, 178, 0.18);
 }
 
-body[data-brand-theme="gotha"][data-theme="light"] {
+body[data-brand-theme="energie"][data-theme="light"] {
   --bg: #f2f7f9;
   --surface: #ffffff;
   --surface-soft: #f7fbfc;
@@ -102,7 +102,7 @@ body[data-brand-theme="gotha"][data-theme="light"] {
   --hover-soft: rgba(0, 132, 126, 0.14);
 }
 
-body[data-brand-theme="gotha"][data-theme="dark"] {
+body[data-brand-theme="energie"][data-theme="dark"] {
   --bg: #101617;
   --surface: #172122;
   --surface-soft: #1d292b;
