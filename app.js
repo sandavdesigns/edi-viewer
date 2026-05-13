@@ -33,6 +33,7 @@ const MEASUREMENT_CHART_HEIGHT = 360;
 const MEASUREMENT_PLOT = { x: 44, y: 28, width: 1018, height: 278 };
 const MEASUREMENT_AXIS_LABEL_Y = MEASUREMENT_CHART_HEIGHT - 30;
 const THEME_STORAGE_KEY = "edi-viewer-theme";
+const runtimeConfig = normalizeRuntimeConfig(window.EDI_VIEWER_CONFIG);
 const MARKET_TIME_ZONE = "Europe/Berlin";
 const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   timeZone: MARKET_TIME_ZONE,
@@ -750,7 +751,7 @@ function formatDocumentSubtitle(parsed) {
 
 function render() {
   const parsed = state.parsed;
-  els.windowTitle.textContent = "EDIFACT Lastgang Viewer";
+  els.windowTitle.textContent = getAppTitle();
   els.fileName.textContent = parsed ? formatDocumentSubtitle(parsed) : "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
   els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
@@ -2245,6 +2246,26 @@ function readStoredTheme() {
   }
 }
 
+function normalizeRuntimeConfig(config) {
+  const rawTheme = String(config?.theme || "").trim().toLowerCase();
+  const theme = ["gotha", "gothaer", "stadtwerke-gotha", "gothaer-stadtwerke"].includes(rawTheme) ? "gotha" : "";
+  const name = String(config?.name || "").trim();
+  return { theme, name };
+}
+
+function applyRuntimeConfig() {
+  if (runtimeConfig.theme) {
+    document.body.dataset.brandTheme = runtimeConfig.theme;
+  } else {
+    delete document.body.dataset.brandTheme;
+  }
+  document.title = getAppTitle();
+}
+
+function getAppTitle() {
+  return runtimeConfig.name ? `EDIFACT Lastgang Viewer - ${runtimeConfig.name}` : "EDIFACT Lastgang Viewer";
+}
+
 function applyThemeMode(mode) {
   const effectiveTheme = mode === "auto" ? (systemDarkMode?.matches ? "dark" : "light") : mode;
   document.body.dataset.theme = effectiveTheme;
@@ -2252,6 +2273,7 @@ function applyThemeMode(mode) {
   renderChart(state.parsed);
 }
 
+applyRuntimeConfig();
 initTheme();
 wireEvents();
 render();

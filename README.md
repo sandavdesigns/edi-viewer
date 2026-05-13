@@ -40,6 +40,14 @@ APP_PORT=8090 docker compose up -d
 
 Ohne Variable nutzt der Stack weiter Port `8080`.
 
+Optional kann ein Branding gesetzt werden. Ohne diese Variablen bleibt die App im Standarddesign.
+
+```bash
+APP_THEME=gotha APP_NAME="Stadtwerke Gotha" docker compose up -d
+```
+
+`APP_THEME=gotha` aktiviert ein helles und dunkles Theme auf Basis der Gothaer-Stadtwerke-Energie-Farben. `APP_NAME` ergänzt den Titel oben zu `EDIFACT Lastgang Viewer - <Name>`.
+
 Aktualisieren auf den neuesten Stand:
 
 ```bash
@@ -57,10 +65,12 @@ Am einfachsten wird das öffentliche GitHub-Repository direkt als Stack verwende
 4. **Repository** auswählen.
 5. Repository URL eintragen: `https://github.com/sandavdesigns/edi-viewer.git`
 6. Compose path: `docker-compose.yml`
-7. Optional unter **Environment variables** den Port setzen:
+7. Optional unter **Environment variables** Port, Theme und Namen setzen:
 
 ```text
 APP_PORT=8090
+APP_THEME=gotha
+APP_NAME=Stadtwerke Gotha
 ```
 
 8. Stack deployen.
@@ -74,6 +84,15 @@ APP_PORT=8090
 ```
 
 Der Container selbst hört intern auf Port `80`; `APP_PORT` ändert nur den externen Port auf dem Host.
+
+### Branding ändern
+
+```text
+APP_THEME=gotha
+APP_NAME=Stadtwerke Gotha
+```
+
+`APP_THEME=gotha` nutzt ein helles und dunkles Farbschema nach den Gothaer-Stadtwerke-Energie-Farben. Der vorhandene Umschalter **Auto/Hell/Dunkel** bleibt erhalten. `APP_NAME` ergänzt den Kopfbereich und den Browser-Titel. Wenn `APP_THEME` und `APP_NAME` leer bleiben, wird das Standarddesign verwendet.
 
 ### Portainer-Hinweis
 
