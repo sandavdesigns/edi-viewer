@@ -1363,16 +1363,22 @@ function selectPointFromChart(event) {
   const points = getFilteredSeriesPoints(selectedSeries);
   if (!points.length) return;
 
-  const svg = els.chart;
-  const rect = svg.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-
-  const viewX = ((event.clientX - rect.left) / rect.width) * MEASUREMENT_CHART_WIDTH;
+  const chartPoint = clientPointToSvgPoint(els.chart, event.clientX, event.clientY);
+  if (!chartPoint) return;
   const plot = MEASUREMENT_PLOT;
-  const clampedX = Math.min(Math.max(viewX, plot.x), plot.x + plot.width);
+  const clampedX = Math.min(Math.max(chartPoint.x, plot.x), plot.x + plot.width);
   const index = Math.round(((clampedX - plot.x) / plot.width) * Math.max(points.length - 1, 0));
 
   selectMeasurementPoint(index, { scroll: true });
+}
+
+function clientPointToSvgPoint(svg, clientX, clientY) {
+  const matrix = svg.getScreenCTM?.();
+  if (!matrix) return null;
+  const point = svg.createSVGPoint ? svg.createSVGPoint() : new DOMPoint();
+  point.x = clientX;
+  point.y = clientY;
+  return point.matrixTransform(matrix.inverse());
 }
 
 function selectMeasurementPoint(index, options = {}) {
