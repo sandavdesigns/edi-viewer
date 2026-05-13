@@ -3,6 +3,11 @@ services:
     image: nginx:1.27-alpine
     ports:
       - "${APP_PORT:-8080}:80"
+    environment:
+      APP_THEME: "${APP_THEME:-}"
+      APP_NAME: "${APP_NAME:-}"
+      THEME: "${THEME:-}"
+      NAME: "${NAME:-}"
     command: >
       sh -c "export APP_THEME=\"$${APP_THEME:-$${THEME:-}}\" APP_NAME=\"$${APP_NAME:-$${NAME:-}}\"
       && rm -rf /usr/share/nginx/html/* /tmp/edi-viewer.tar.gz /tmp/edi-viewer-main
