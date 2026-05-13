@@ -1357,6 +1357,46 @@ function drawMeasurementChart(svg, rows) {
   addText(svg, plot.x + plot.width, MEASUREMENT_AXIS_LABEL_Y, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "var(--muted)", 11, 650);
 }
 
+function selectPointFromChart(event) {
+  if (state.measurementView !== "points") return;
+  const selectedSeries = getSelectedSeries(state.parsed);
+  const points = getFilteredSeriesPoints(selectedSeries);
+  if (!points.length) return;
+
+  const svg = els.chart;
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const viewX = ((event.clientX - rect.left) / rect.width) * MEASUREMENT_CHART_WIDTH;
+  const plot = MEASUREMENT_PLOT;
+  const clampedX = Math.min(Math.max(viewX, plot.x), plot.x + plot.width);
+  const index = Math.round(((clampedX - plot.x) / plot.width) * Math.max(points.length - 1, 0));
+
+  selectMeasurementPoint(index, { scroll: true });
+}
+
+function selectMeasurementPoint(index, options = {}) {
+  const selectedSeries = getSelectedSeries(state.parsed);
+  const points = getFilteredSeriesPoints(selectedSeries);
+  if (!Number.isInteger(index) || index < 0 || index >= points.length) return;
+
+  state.selectedPointIndex = index;
+  if (index >= state.visiblePointRows) {
+    state.visiblePointRows = Math.ceil((index + 1) / ROW_LOAD_STEP) * ROW_LOAD_STEP;
+  }
+
+  renderMeasurementTable(state.parsed);
+  renderSeriesInsights(state.parsed);
+  renderChart(state.parsed);
+
+  if (options.scroll) {
+    window.requestAnimationFrame(() => {
+      const row = els.measurementTable.querySelector(`tr[data-point-index="${index}"]`);
+      row?.scrollIntoView({ block: "center", inline: "nearest" });
+    });
+  }
+}
+
 function buildStepPath(points) {
   if (!points.length) return "";
   let path = `M ${points[0][0]} ${points[0][1]}`;
@@ -2169,10 +2209,7 @@ function wireEvents() {
   els.measurementTable.addEventListener("click", (event) => {
     const pointRow = event.target.closest("tr[data-point-index]");
     if (pointRow) {
-      state.selectedPointIndex = Number(pointRow.dataset.pointIndex);
-      renderMeasurementTable(state.parsed);
-      renderSeriesInsights(state.parsed);
-      renderChart(state.parsed);
+      selectMeasurementPoint(Number(pointRow.dataset.pointIndex));
       return;
     }
 
@@ -2215,6 +2252,8 @@ function wireEvents() {
   els.exportSegments.addEventListener("click", () => {
     exportSelectedLoadProfiles("lastgang");
   });
+
+  els.chart.addEventListener("click", selectPointFromChart);
 }
 
 function baseName(name) {

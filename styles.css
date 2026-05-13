@@ -947,6 +947,7 @@ body.is-tree-collapsed .tree-toggle::before {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: crosshair;
 }
 
 @media (max-width: 1180px) {
