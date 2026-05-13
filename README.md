@@ -22,6 +22,10 @@ Browserbasierter EDIFACT-Viewer für MSCONS- und ALOCAT-Dateien im deutschen Str
 Die App ist statisch. `index.html` kann direkt im Browser geöffnet werden.
 Zum schnellen Testen liegt unter `examples/mscons-sample.edi` eine kleine MSCONS-Beispieldatei.
 
+## Admin-Dokumentation
+
+Weitere Details für Betrieb, Portainer, Environment Variables, Updates und Troubleshooting stehen im [Admin-Handbuch](docs/admin-handbuch.md).
+
 ## Installation mit Docker
 
 ```bash
