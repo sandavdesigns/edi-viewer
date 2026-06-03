@@ -218,6 +218,19 @@
       </div>
     </dialog>
 
+    <dialog id="analysisDialog" class="info-dialog analysis-dialog">
+      <div class="modal-panel">
+        <div class="modal-heading">
+          <div>
+            <h2>PV-Potentialanalyse</h2>
+            <span>Heuristische Einschätzung aus dem geladenen Lastgang</span>
+          </div>
+          <button id="analysisClose" class="icon-button" type="button" aria-label="PV-Analyse schließen">×</button>
+        </div>
+        <div id="analysisContent" class="analysis-content"></div>
+      </div>
+    </dialog>
+
     <template id="emptyRowTemplate">
       <tr>
         <td colspan="5" class="empty">Noch keine Daten geladen.</td>

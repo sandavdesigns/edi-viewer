@@ -75,6 +75,7 @@ Am einfachsten wird das öffentliche GitHub-Repository direkt als Stack verwende
 APP_PORT=8090
 APP_THEME=energie
 APP_NAME=Energieportal
+APP_ANALYSIS_PASSWORD=mein-passwort
 ```
 
 8. Stack deployen.
@@ -99,6 +100,10 @@ APP_NAME=Energieportal
 `APP_THEME=energie` nutzt ein helles und dunkles Energie-Farbschema. Der vorhandene Umschalter **Auto/Hell/Dunkel** bleibt erhalten. `APP_NAME` ergänzt den Kopfbereich und den Browser-Titel. Wenn `APP_THEME` und `APP_NAME` leer bleiben, wird das Standarddesign verwendet.
 
 Nach einer Änderung der Environment Variables muss der Stack in Portainer neu deployed werden. Falls der Browser noch das alte Design zeigt, einmal hart neu laden oder den Browser-Cache für die Seite leeren.
+
+### Versteckte PV-Analyse
+
+Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Datei geöffnet werden. Optional schützt `APP_ANALYSIS_PASSWORD` den Aufruf mit einer Passwortabfrage. Da die App vollständig statisch im Browser läuft, ist das Passwort nur ein einfacher UI-Schutz und kein echtes Sicherheitskonzept.
 
 ### Portainer-Hinweis
 

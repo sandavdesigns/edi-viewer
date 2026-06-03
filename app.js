@@ -47,6 +47,7 @@ const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
 });
 const marketDateTimeCache = new Map();
 const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
+let analysisUnlocked = false;
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -167,6 +168,9 @@ const els = {
   manualOpen: document.querySelector("#manualOpen"),
   manualClose: document.querySelector("#manualClose"),
   manualDialog: document.querySelector("#manualDialog"),
+  analysisClose: document.querySelector("#analysisClose"),
+  analysisDialog: document.querySelector("#analysisDialog"),
+  analysisContent: document.querySelector("#analysisContent"),
   measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
@@ -1695,6 +1699,166 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function openPvAnalysis() {
+  if (!state.parsed) {
+    window.alert("Bitte zuerst eine MSCONS- oder ALOCAT-Datei laden.");
+    return;
+  }
+  if (runtimeConfig.analysisPassword && !analysisUnlocked) {
+    const value = window.prompt("Passwort für PV-Analyse");
+    if (value !== runtimeConfig.analysisPassword) {
+      window.alert("Passwort nicht korrekt.");
+      return;
+    }
+    analysisUnlocked = true;
+  }
+  renderPvAnalysis();
+  openDialog(els.analysisDialog);
+}
+
+function renderPvAnalysis() {
+  const rows = (state.parsed?.measurementSeries || []).map(analyzePvPotential).filter(Boolean);
+  els.analysisContent.innerHTML = "";
+  if (!rows.length) {
+    els.analysisContent.textContent = "Keine Lastgang-Zeitreihen fuer die Analyse gefunden.";
+    return;
+  }
+
+  const note = document.createElement("p");
+  note.className = "analysis-note";
+  note.textContent = "Hinweis: Die Werte sind eine Lastprofil-Heuristik ohne Standort, Dachflaeche, Ausrichtung, Verschattung, Strompreis und Einspeiseverguetung. Sie ersetzen keine technische oder wirtschaftliche Planung.";
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap analysis-table-wrap";
+  const table = document.createElement("table");
+  table.className = "analysis-table";
+  const thead = document.createElement("thead");
+  const header = document.createElement("tr");
+  for (const label of ["Zaehlpunkt", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschaetzung"]) {
+    const th = document.createElement("th");
+    th.textContent = label;
+    header.append(th);
+  }
+  thead.append(header);
+  const tbody = document.createElement("tbody");
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    appendCell(tr, row.meteringPoint);
+    appendCell(tr, `${row.days} Tage${row.fullYear ? "" : " (kein volles Jahr)"}`);
+    appendCell(tr, `${formatNumber(row.total)} kWh`);
+    appendCell(tr, `${formatNumber(row.pvShare)} %`);
+    appendCell(tr, `${formatNumber(row.eveningShare)} % / ${formatNumber(row.nightShare)} %`);
+    appendCell(tr, `${formatNumber(row.pvLow)}-${formatNumber(row.pvHigh)} kWp`);
+    appendCell(tr, `${formatNumber(row.storageLow)}-${formatNumber(row.storageHigh)} kWh`);
+    appendCell(tr, row.recommendation);
+    tbody.append(tr);
+  }
+  table.append(thead, tbody);
+  tableWrap.append(table);
+
+  const details = document.createElement("div");
+  details.className = "analysis-details";
+  for (const row of rows) {
+    const card = document.createElement("section");
+    card.className = "analysis-card";
+    const title = document.createElement("h3");
+    title.textContent = `${row.meteringPoint} - ${row.obis}`;
+    const text = document.createElement("p");
+    text.textContent = row.detail;
+    card.append(title, text);
+    details.append(card);
+  }
+
+  els.analysisContent.append(note, tableWrap, details);
+}
+
+function analyzePvPotential(series) {
+  const points = series?.points || [];
+  if (!points.length) return null;
+
+  let total = 0;
+  let pvWindow = 0;
+  let corePvWindow = 0;
+  let evening = 0;
+  let night = 0;
+  const daily = new Map();
+  let firstTime = Number.POSITIVE_INFINITY;
+  let lastTime = 0;
+
+  for (const point of points) {
+    const value = Number(point.quantity) || 0;
+    const time = parseDateValue(point.from);
+    if (!time) continue;
+    const date = new Date(time);
+    const hour = date.getHours();
+    const day = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+
+    total += value;
+    if (hour >= 8 && hour < 18) pvWindow += value;
+    if (hour >= 10 && hour < 16) corePvWindow += value;
+    if (hour >= 18 && hour < 23) evening += value;
+    if (hour >= 23 || hour < 6) night += value;
+    daily.set(day, (daily.get(day) || 0) + value);
+    if (time < firstTime) firstTime = time;
+    if (time > lastTime) lastTime = time;
+  }
+
+  const days = Math.max(daily.size, 1);
+  const fullYear = days >= 330;
+  const annualTotal = fullYear ? total : (total / days) * 365;
+  const avgDay = total / days;
+  const eveningPerDay = evening / days;
+  const pvShare = percent(pvWindow, total);
+  const coreShare = percent(corePvWindow, total);
+  const eveningShare = percent(evening, total);
+  const nightShare = percent(night, total);
+  const pvLow = roundCapacity((annualTotal / 1000) * 0.45, 5);
+  const pvHigh = roundCapacity((annualTotal / 1000) * (pvShare >= 55 ? 0.75 : 0.9), 5);
+  const storageLow = roundCapacity(Math.max(avgDay * 0.1, eveningPerDay * 0.5), 5);
+  const storageHigh = roundCapacity(Math.max(avgDay * 0.22, eveningPerDay * 1.2), 5);
+  const recommendation = pvShare >= 55
+    ? "PV sehr sinnvoll, Speicher moderat prüfen"
+    : eveningShare >= 22
+      ? "PV sinnvoll, Speicher als Variante interessant"
+      : "PV sinnvoll, Speicher optional";
+  const detail = [
+    `${formatNumber(pvShare)} % des Verbrauchs liegen zwischen 08:00 und 18:00 Uhr, ${formatNumber(coreShare)} % im Kernfenster 10:00 bis 16:00 Uhr.`,
+    `${formatNumber(eveningShare)} % liegen abends und ${formatNumber(nightShare)} % nachts.`,
+    fullYear ? "Die Zeitreihe deckt fast ein volles Jahr ab." : "Die Zeitreihe deckt kein volles Jahr ab; PV- und Speicherbereiche sind deshalb nur hochgerechnet.",
+  ].join(" ");
+
+  return {
+    meteringPoint: series.meteringPoint,
+    obis: series.obis,
+    days,
+    fullYear,
+    total,
+    annualTotal,
+    avgDay,
+    pvShare,
+    coreShare,
+    eveningShare,
+    nightShare,
+    pvLow,
+    pvHigh,
+    storageLow,
+    storageHigh,
+    recommendation,
+    detail,
+    firstTime,
+    lastTime,
+  };
+}
+
+function percent(value, total) {
+  return total ? (value / total) * 100 : 0;
+}
+
+function roundCapacity(value, step = 5) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.max(step, Math.round(value / step) * step);
+}
+
 function openDialog(dialog) {
   try {
     if (typeof dialog.showModal === "function" && !dialog.open) {
@@ -2149,6 +2313,20 @@ function wireEvents() {
     if (event.target === els.manualDialog) closeDialog(els.manualDialog);
   });
 
+  els.analysisClose.addEventListener("click", () => {
+    closeDialog(els.analysisDialog);
+  });
+
+  els.analysisDialog.addEventListener("click", (event) => {
+    if (event.target === els.analysisDialog) closeDialog(els.analysisDialog);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!(event.ctrlKey && event.altKey && event.key.toLowerCase() === "p")) return;
+    event.preventDefault();
+    openPvAnalysis();
+  });
+
   els.treeToggle.addEventListener("click", () => {
     state.treeCollapsed = !state.treeCollapsed;
     updateTreePanelState();
@@ -2337,7 +2515,8 @@ function normalizeRuntimeConfig(config) {
   const rawTheme = String(config?.theme || "").trim().toLowerCase();
   const theme = ["energie", "energy", "brand", "custom"].includes(rawTheme) ? "energie" : "";
   const name = String(config?.name || "").trim();
-  return { theme, name };
+  const analysisPassword = String(config?.analysisPassword || "").trim();
+  return { theme, name, analysisPassword };
 }
 
 function applyRuntimeConfig() {

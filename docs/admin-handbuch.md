@@ -61,6 +61,7 @@ docker-compose.yml
 APP_PORT=8090
 APP_THEME=energie
 APP_NAME=Energieportal
+APP_ANALYSIS_PASSWORD=mein-passwort
 ```
 
 8. Stack deployen.
@@ -94,10 +95,34 @@ APP_PORT=8090 docker compose up -d
 | `APP_PORT` | `8090` | Externer Host-Port. Intern hört nginx auf Port `80`. |
 | `APP_THEME` | `energie` | Optionales Branding-Theme. Leer lassen für Standarddesign. |
 | `APP_NAME` | `Energieportal` | Optionaler Name im Kopfbereich und Browser-Titel. |
+| `APP_ANALYSIS_PASSWORD` | `mein-passwort` | Optionales Passwort für die versteckte PV-Potentialanalyse. |
 
 `APP_THEME=energie` aktiviert ein helles und dunkles Energie-Farbschema. Der Umschalter **Auto/Hell/Dunkel** bleibt für Anwender erhalten.
 
 Wenn `APP_THEME` und `APP_NAME` leer bleiben, verhält sich die App wie im Standardzustand.
+
+## Versteckte PV-Potentialanalyse
+
+Die App enthält eine versteckte PV-Potentialanalyse für geladene Lastgänge. Sie wird über dieses Tastenkürzel geöffnet:
+
+```text
+Strg+Alt+P
+```
+
+Wenn `APP_ANALYSIS_PASSWORD` gesetzt ist, fragt die App beim Öffnen nach dem Passwort. Ohne gesetztes Passwort öffnet die Analyse direkt.
+
+Die Analyse bewertet je Zeitreihe:
+
+- Jahres- bzw. Zeitraumverbrauch
+- Verbrauchsanteil in typischen PV-Zeiten
+- Abend- und Nachtanteile
+- grobe PV-Leistung in `kWp`
+- grobe Speichergröße in `kWh`
+- Hinweis, ob der Zeitraum ein volles Jahr abdeckt
+
+Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und kennt keinen Standort, keine Dachfläche, keine Dachausrichtung, keine Verschattung, keine Strompreise und keine Einspeisevergütung. Sie eignet sich als Vorabschätzung, nicht als finale Anlagenplanung.
+
+Wichtig: Da die App statisch im Browser läuft, ist `APP_ANALYSIS_PASSWORD` nur ein einfacher UI-Schutz. Es ist kein sicherer Zugriffsschutz für vertrauliche Funktionen.
 
 ## Updates
 
