@@ -2701,11 +2701,13 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.ctrlKey && event.altKey && event.key.toLowerCase() === "p") {
+    const shortcutKey = event.code || event.key;
+    const key = (event.key || "").toLowerCase();
+    if (event.ctrlKey && event.altKey && (shortcutKey === "KeyP" || key === "p")) {
       event.preventDefault();
       openPvAnalysis();
     }
-    if (event.ctrlKey && event.altKey && event.key.toLowerCase() === "m") {
+    if (event.ctrlKey && event.altKey && (shortcutKey === "KeyM" || key === "m")) {
       event.preventDefault();
       openMsconsMerge();
     }
