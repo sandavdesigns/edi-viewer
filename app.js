@@ -206,26 +206,12 @@ function parseEdifact(rawText) {
     };
   });
 
-  for (const segment of segments) {
-    segment.searchText = [segment.index, segment.tag, segment.label, segment.raw].join(" ").toLowerCase();
-  }
-
-  const businessRows = extractBusinessRows(segments);
-  for (const row of businessRows) {
-    row.searchText = [row.type, row.qualifier, row.value, row.extra, row.segment].join(" ").toLowerCase();
-  }
-  const facts = extractFacts(segments, businessRows, chars, rawText.length);
+  const facts = extractFacts(segments, chars, rawText.length);
   const measurementRows = extractMeasurementRows(segments, facts);
-  for (const row of measurementRows) {
-    row.searchText = Object.values(row).join(" ").toLowerCase();
-  }
   const measurementSeries = buildMeasurementSeries(measurementRows);
-  for (const row of measurementSeries) {
-    row.searchText = [row.meteringPoint, row.obis, row.from, row.to, row.quantity, row.minimum, row.maximum, row.sender, row.receiver, row.thirdParty].join(" ").toLowerCase();
-  }
   const validation = validateInterchange(segments);
 
-  return { chars, rawText: text, segments, businessRows, measurementRows, measurementSeries, facts, validation };
+  return { chars, segments, businessRows: null, measurementRows, measurementSeries, facts, validation };
 }
 
 function detectServiceChars(text) {
@@ -366,7 +352,7 @@ function dtmParts(segment) {
   };
 }
 
-function extractFacts(segments, rows, chars, byteSize = 0) {
+function extractFacts(segments, chars, byteSize = 0) {
   const firstUnb = segments.find((segment) => segment.tag === "UNB");
   const firstUnh = segments.find((segment) => segment.tag === "UNH");
   const firstBgm = segments.find((segment) => segment.tag === "BGM");
@@ -375,11 +361,22 @@ function extractFacts(segments, rows, chars, byteSize = 0) {
   const rawMessageType = firstUnh?.elements[1]?.[0] || "";
   const messageType = isAlocatMessage(rawMessageType, bgmCode, documentNumber) ? "ALOCAT" : rawMessageType;
   const version = firstUnh?.elements[1]?.slice(1).filter(Boolean).join(".") || "";
-  const sender = firstUnb?.elements[1]?.join(":") || rows.find((row) => row.type === "Marktpartner" && row.qualifier === "MS")?.value || "";
-  const receiver = firstUnb?.elements[2]?.join(":") || rows.find((row) => row.type === "Marktpartner" && row.qualifier === "MR")?.value || "";
-  const references = rows.filter((row) => row.type === "Referenz").length;
-  const quantities = rows.filter((row) => row.type === "Menge").length;
-  const amounts = rows.filter((row) => row.type === "Betrag").length;
+  let sender = firstUnb?.elements[1]?.join(":") || "";
+  let receiver = firstUnb?.elements[2]?.join(":") || "";
+  let references = 0;
+  let quantities = 0;
+  let amounts = 0;
+
+  for (const segment of segments) {
+    if (segment.tag === "RFF") references += 1;
+    if (segment.tag === "QTY") quantities += 1;
+    if (segment.tag === "MOA") amounts += 1;
+    if (segment.tag !== "NAD") continue;
+    const qualifier = segment.elements[0]?.[0] || "";
+    const party = [segment.elements[1]?.[0], segment.elements[2]?.join(" "), segment.elements[4]?.join(" ")].filter(Boolean).join(" / ");
+    if (!sender && qualifier === "MS") sender = party;
+    if (!receiver && qualifier === "MR") receiver = party;
+  }
 
   return {
     messageType,
@@ -762,10 +759,16 @@ function render() {
   renderObisFilter(parsed);
   renderTree(parsed);
   renderMeasurementTable(parsed);
-  renderBusinessTable(parsed);
-  renderSegmentsTable(parsed);
+  renderSecondaryTables(parsed);
   renderSeriesInsights(parsed);
   renderChart(parsed);
+}
+
+function renderSecondaryTables(parsed) {
+  const lowerGrid = document.querySelector(".lower-grid");
+  if (!lowerGrid || getComputedStyle(lowerGrid).display === "none") return;
+  renderBusinessTable(parsed);
+  renderSegmentsTable(parsed);
 }
 
 function renderDocumentTabs() {
@@ -1158,11 +1161,17 @@ function updateMeasurementFooter(visible, rows) {
 }
 
 function getFilteredBusinessRows(parsed) {
-  return parsed?.businessRows.filter((row) => includesFilter(row, state.businessDetailFilter)) || [];
+  return getBusinessRows(parsed).filter((row) => includesFilter(row, state.businessDetailFilter));
 }
 
 function getFilteredSegments(parsed) {
   return parsed?.segments.filter((segment) => includesFilter(segment, state.segmentFilter)) || [];
+}
+
+function getBusinessRows(parsed) {
+  if (!parsed) return [];
+  if (!parsed.businessRows) parsed.businessRows = extractBusinessRows(parsed.segments);
+  return parsed.businessRows;
 }
 
 function getFilteredMeasurementRows(parsed) {
@@ -1228,7 +1237,22 @@ function summarizeSeries(row) {
 
 function includesFilter(value, filter) {
   if (!filter) return true;
-  return value.searchText.includes(filter.toLowerCase());
+  return getSearchText(value).includes(filter.toLowerCase());
+}
+
+function getSearchText(value) {
+  if (!value) return "";
+  if (value.searchText) return value.searchText;
+  if (value.raw && value.tag) {
+    value.searchText = [value.index, value.tag, value.label, value.raw].join(" ").toLowerCase();
+  } else if ("type" in value && "qualifier" in value) {
+    value.searchText = [value.type, value.qualifier, value.value, value.extra, value.segment].join(" ").toLowerCase();
+  } else if ("meteringPoint" in value && "obis" in value) {
+    value.searchText = [value.meteringPoint, value.obis, value.from, value.to, value.quantity, value.minimum, value.maximum, value.sender, value.receiver, value.thirdParty].join(" ").toLowerCase();
+  } else {
+    value.searchText = Object.values(value).join(" ").toLowerCase();
+  }
+  return value.searchText;
 }
 
 function renderChart(parsed) {
@@ -1822,6 +1846,7 @@ async function handleFiles(fileList) {
   const files = [...(fileList || [])];
   if (!files.length) return;
   saveActiveDocumentState();
+  let lastDocumentId = null;
 
   for (const file of files) {
     state.fileName = `${file.name} wird geladen...`;
@@ -1839,8 +1864,10 @@ async function handleFiles(fileList) {
     };
     state.nextDocumentId += 1;
     state.documents.push(documentState);
-    activateDocument(documentState.id, false);
+    lastDocumentId = documentState.id;
   }
+
+  if (lastDocumentId) activateDocument(lastDocumentId, false);
 }
 
 async function readEdifactFile(file) {
