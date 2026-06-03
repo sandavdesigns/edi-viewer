@@ -32,6 +32,7 @@ const MEASUREMENT_CHART_WIDTH = 1100;
 const MEASUREMENT_CHART_HEIGHT = 360;
 const MEASUREMENT_PLOT = { x: 44, y: 28, width: 1018, height: 278 };
 const MEASUREMENT_AXIS_LABEL_Y = MEASUREMENT_CHART_HEIGHT - 30;
+const MAX_CHART_POINTS = 1100;
 const THEME_STORAGE_KEY = "edi-viewer-theme";
 const runtimeConfig = normalizeRuntimeConfig(window.EDI_VIEWER_CONFIG);
 const MARKET_TIME_ZONE = "Europe/Berlin";
@@ -1337,9 +1338,10 @@ function drawQuantityChart(svg, rows) {
 function drawMeasurementChart(svg, rows) {
   const selectedSeries = getSelectedSeries(state.parsed, rows);
   const pointsForSeries = getFilteredSeriesPoints(selectedSeries);
-  const values = pointsForSeries.map((row) => Number(row.quantity)).filter((value) => Number.isFinite(value));
+  const values = pointsForSeries.map((row) => Number(row.quantity));
+  const finiteValues = values.filter((value) => Number.isFinite(value));
 
-  if (!values.length) {
+  if (!finiteValues.length) {
     addPlotBackground(svg, MEASUREMENT_PLOT.x, MEASUREMENT_PLOT.y, MEASUREMENT_PLOT.width, MEASUREMENT_PLOT.height);
     addText(svg, MEASUREMENT_CHART_WIDTH / 2, MEASUREMENT_PLOT.y + MEASUREMENT_PLOT.height / 2, "Kein Lastgang ausgewählt", "middle", "var(--muted)", 15, 700);
     return;
@@ -1347,14 +1349,10 @@ function drawMeasurementChart(svg, rows) {
 
   const plot = MEASUREMENT_PLOT;
   addPlotBackground(svg, plot.x, plot.y, plot.width, plot.height);
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
+  const max = Math.max(...finiteValues, 1);
+  const min = Math.min(...finiteValues, 0);
   const range = max - min || 1;
-  const points = values.map((value, index) => {
-    const x = plot.x + (index / Math.max(values.length - 1, 1)) * plot.width;
-    const y = plot.y + plot.height - ((value - min) / range) * plot.height;
-    return [x, y, value];
-  });
+  const points = buildChartDisplayPoints(values, plot, min, range);
   const baseline = plot.y + plot.height;
   const linePath = buildStepPath(points);
   const areaPath = `${linePath} L ${points[points.length - 1][0]} ${baseline} L ${points[0][0]} ${baseline} Z`;
@@ -1367,9 +1365,9 @@ function drawMeasurementChart(svg, rows) {
   if (minPoint) addCircle(svg, minPoint[0], minPoint[1], 3, "var(--accent-dark)");
   if (maxPoint) addCircle(svg, maxPoint[0], maxPoint[1], 3, "var(--accent-dark)");
 
-  if (Number.isInteger(state.selectedPointIndex) && points[state.selectedPointIndex]) {
-    const selectedPoint = points[state.selectedPointIndex];
+  if (Number.isInteger(state.selectedPointIndex) && pointsForSeries[state.selectedPointIndex]) {
     const selectedValue = pointsForSeries[state.selectedPointIndex];
+    const selectedPoint = chartPointForIndex(state.selectedPointIndex, Number(selectedValue.quantity), values.length, plot, min, range);
     addLine(svg, selectedPoint[0], plot.y, selectedPoint[0], baseline, "var(--danger)", 1.4);
     addCircle(svg, selectedPoint[0], selectedPoint[1], 5, "var(--danger)");
     addText(svg, Math.min(selectedPoint[0] + 8, plot.x + plot.width), Math.max(selectedPoint[1] - 10, plot.y + 12), compactNumber(selectedValue.quantity), "end", "var(--danger)", 11, 800);
@@ -1379,6 +1377,38 @@ function drawMeasurementChart(svg, rows) {
   addText(svg, plot.x - 10, baseline + 4, compactNumber(min), "end", "var(--text-table)", 11, 700);
   addText(svg, plot.x, MEASUREMENT_AXIS_LABEL_Y, formatAxisDate(pointsForSeries[0]?.from), "start", "var(--muted)", 11, 650);
   addText(svg, plot.x + plot.width, MEASUREMENT_AXIS_LABEL_Y, formatAxisDate(pointsForSeries[pointsForSeries.length - 1]?.to), "end", "var(--muted)", 11, 650);
+}
+
+function buildChartDisplayPoints(values, plot, min, range) {
+  if (values.length <= MAX_CHART_POINTS) {
+    return values.map((value, index) => chartPointForIndex(index, value, values.length, plot, min, range));
+  }
+
+  const bucketSize = Math.ceil(values.length / MAX_CHART_POINTS);
+  const points = [];
+  for (let start = 0; start < values.length; start += bucketSize) {
+    const end = Math.min(start + bucketSize, values.length);
+    let minIndex = start;
+    let maxIndex = start;
+    for (let index = start + 1; index < end; index += 1) {
+      if (values[index] < values[minIndex]) minIndex = index;
+      if (values[index] > values[maxIndex]) maxIndex = index;
+    }
+    const ordered = minIndex < maxIndex ? [minIndex, maxIndex] : [maxIndex, minIndex];
+    for (const index of ordered) {
+      const value = values[index];
+      if (!Number.isFinite(value)) continue;
+      if (points.length && points[points.length - 1][3] === index) continue;
+      points.push(chartPointForIndex(index, value, values.length, plot, min, range));
+    }
+  }
+  return points;
+}
+
+function chartPointForIndex(index, value, total, plot, min, range) {
+  const x = plot.x + (index / Math.max(total - 1, 1)) * plot.width;
+  const y = plot.y + plot.height - ((value - min) / range) * plot.height;
+  return [x, y, value, index];
 }
 
 function selectPointFromChart(event) {
@@ -1595,13 +1625,13 @@ function renderSeriesInsights(parsed) {
   }
 
   const points = getFilteredSeriesPoints(series);
-  const analysis = analyzeSeries({ ...series, points });
-  appendInsight("Werte", formatNumber(points.length));
-  appendInsight("Summe", formatNumber(points.reduce((sum, point) => sum + (Number(point.quantity) || 0), 0)));
-  appendInsight("Min / Max", points.length ? `${formatNumber(Math.min(...points.map((point) => Number(point.quantity) || 0)))} / ${formatNumber(Math.max(...points.map((point) => Number(point.quantity) || 0)))}` : "-");
-  appendInsight("Durchschnitt", points.length ? formatNumber(points.reduce((sum, point) => sum + (Number(point.quantity) || 0), 0) / points.length) : "-");
-  appendInsight("Lücken", String(analysis.gaps.length));
-  appendInsight("Status", formatStatusSummary(points));
+  const stats = summarizeInsightPoints(points);
+  appendInsight("Werte", formatNumber(stats.count));
+  appendInsight("Summe", formatNumber(stats.sum));
+  appendInsight("Min / Max", stats.count ? `${formatNumber(stats.min)} / ${formatNumber(stats.max)}` : "-");
+  appendInsight("Durchschnitt", stats.count ? formatNumber(stats.sum / stats.count) : "-");
+  appendInsight("Lücken", String(stats.gaps));
+  appendInsight("Status", stats.status);
 }
 
 function appendInsight(label, value) {
@@ -1615,62 +1645,47 @@ function appendInsight(label, value) {
   els.seriesInsights.append(card);
 }
 
-function formatStatusSummary(points) {
-  const counts = points.reduce((acc, point) => {
-    const key = point.status || "-";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-  return Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([status, count]) => `${status}: ${count}`)
-    .join(", ");
-}
+function summarizeInsightPoints(points) {
+  if (!points.length) {
+    return { count: 0, sum: 0, min: 0, max: 0, gaps: 0, status: "-" };
+  }
 
-function analyzeSeries(series) {
-  const points = [...(series?.points || [])].sort((a, b) => (parseDateValue(a.from) || 0) - (parseDateValue(b.from) || 0));
-  const seen = new Set();
-  const duplicates = [];
-  const gaps = [];
-  const values = points.map((point) => Number(point.quantity)).filter((value) => Number.isFinite(value));
-  const outliers = [];
+  let sum = 0;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  const statusCounts = new Map();
+  const intervals = [];
+  let previousTime = null;
 
   for (const point of points) {
-    const key = `${point.from || ""}||${point.to || ""}`;
-    if (seen.has(key)) duplicates.push(point);
-    seen.add(key);
+    const value = Number(point.quantity) || 0;
+    sum += value;
+    if (value < min) min = value;
+    if (value > max) max = value;
+
+    const status = point.status || "-";
+    statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
+
+    const time = parseDateValue(point.from);
+    if (previousTime && time && time > previousTime) intervals.push(time - previousTime);
+    if (time) previousTime = time;
   }
 
-  const diffs = [];
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = parseDateValue(points[index - 1].from);
-    const current = parseDateValue(points[index].from);
-    if (previous && current && current > previous) diffs.push(current - previous);
-  }
-  const expected = median(diffs);
+  const expected = median(intervals);
+  let gaps = 0;
   if (expected) {
-    for (let index = 1; index < points.length; index += 1) {
-      const previous = parseDateValue(points[index - 1].from);
-      const current = parseDateValue(points[index].from);
-      if (previous && current && current - previous > expected * 1.5) {
-        gaps.push({ from: points[index - 1].from, to: points[index].from, missing: Math.max(1, Math.round((current - previous) / expected) - 1) });
-      }
+    for (const interval of intervals) {
+      if (interval > expected * 1.5) gaps += 1;
     }
   }
 
-  if (values.length >= 8) {
-    const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-    const deviation = Math.sqrt(values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length);
-    if (deviation > 0) {
-      points.forEach((point) => {
-        const value = Number(point.quantity);
-        if (Number.isFinite(value) && Math.abs(value - average) > deviation * 4) outliers.push(point);
-      });
-    }
-  }
+  const status = [...statusCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([key, count]) => `${key}: ${count}`)
+    .join(", ");
 
-  return { expectedInterval: expected, duplicates, gaps, outliers };
+  return { count: points.length, sum, min, max, gaps, status };
 }
 
 function median(values) {
