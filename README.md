@@ -105,6 +105,10 @@ Nach einer Änderung der Environment Variables muss der Stack in Portainer neu d
 
 Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Datei geöffnet werden. Optional schützt `APP_ANALYSIS_PASSWORD` den Aufruf mit einer Passwortabfrage. Da die App vollständig statisch im Browser läuft, ist das Passwort nur ein einfacher UI-Schutz und kein echtes Sicherheitskonzept.
 
+### Versteckte MSCONS-Zusammenführung
+
+Mit `Strg+Alt+M` kann ein verstecktes Werkzeug zum Zusammenführen aller aktuell geladenen MSCONS-Dateien geöffnet werden. Es gruppiert alle Lastgänge nach `Zählpunkt + OBIS`, berechnet Summen/Jahressummen, erlaubt die Auswahl nach Jahressumme und exportiert die ausgewählten OBIS zählpunktscharf als neue MSCONS-Dateien in einer ZIP-Datei. Exakte doppelte Zeiträume werden beim Zusammenführen dedupliziert.
+
 ### Portainer-Hinweis
 
 Das Compose-Setup nutzt direkt `nginx:1.27-alpine` und baut kein eigenes Image. Beim Start lädt der Container die statischen App-Dateien aus diesem GitHub-Repository und serviert sie mit nginx. Dadurch werden in Portainer kein BuildKit/Builder und keine Host-Datei-Mounts benötigt.

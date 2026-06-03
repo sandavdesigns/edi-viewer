@@ -124,6 +124,28 @@ Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und kennt keinen Stan
 
 Wichtig: Da die App statisch im Browser läuft, ist `APP_ANALYSIS_PASSWORD` nur ein einfacher UI-Schutz. Es ist kein sicherer Zugriffsschutz für vertrauliche Funktionen.
 
+## Versteckte MSCONS-Zusammenführung
+
+Die App enthält ein verstecktes Werkzeug, um mehrere geladene MSCONS-Dateien zusammenzuführen. Es wird über dieses Tastenkürzel geöffnet:
+
+```text
+Strg+Alt+M
+```
+
+Wenn `APP_ANALYSIS_PASSWORD` gesetzt ist, fragt auch dieses Werkzeug nach dem Passwort.
+
+Funktion:
+
+- alle aktuell geladenen Dateien werden ausgewertet
+- gleiche Kombinationen aus `Zählpunkt + OBIS` werden zusammengeführt
+- getrennte Zeiträume aus mehreren Dateien werden zu einer Zeitreihe kombiniert
+- exakte doppelte Zeiträume werden nur einmal übernommen
+- je Kombination werden Zeitraum, Anzahl Werte, Summe, Jahressumme und Anzahl Quelldateien angezeigt
+- über `Jahressumme von/bis` können passende Kombinationen gefiltert werden
+- ausgewählte Kombinationen können zählpunktscharf als ZIP exportiert werden; mehrere ausgewählte OBIS desselben Zählpunkts landen gemeinsam in einer MSCONS-Datei innerhalb der ZIP
+
+Hinweis: Die exportierten MSCONS-Dateien werden neu aus dem internen Lastgangmodell erzeugt. Sie sind kein 1:1 Segment-Schnitt der Originaldateien. Vor produktiver Weitergabe sollten sie fachlich und prozessual geprüft werden.
+
 ## Updates
 
 ### Portainer

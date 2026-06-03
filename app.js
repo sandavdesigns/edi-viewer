@@ -48,6 +48,10 @@ const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
 const marketDateTimeCache = new Map();
 const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
 let analysisUnlocked = false;
+let mergeUnlocked = false;
+let mergeRowsCache = [];
+const mergeSelectedKeys = new Set();
+const ZIP_CRC_TABLE = makeCrcTable();
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -171,6 +175,13 @@ const els = {
   analysisClose: document.querySelector("#analysisClose"),
   analysisDialog: document.querySelector("#analysisDialog"),
   analysisContent: document.querySelector("#analysisContent"),
+  mergeClose: document.querySelector("#mergeClose"),
+  mergeDialog: document.querySelector("#mergeDialog"),
+  mergeContent: document.querySelector("#mergeContent"),
+  mergeMinSum: document.querySelector("#mergeMinSum"),
+  mergeMaxSum: document.querySelector("#mergeMaxSum"),
+  mergeApply: document.querySelector("#mergeApply"),
+  mergeExport: document.querySelector("#mergeExport"),
   measurementHead: document.querySelector(".measurement-panel thead"),
   measurementTable: document.querySelector("#measurementTable"),
   measurementCount: document.querySelector("#measurementCount"),
@@ -1859,6 +1870,346 @@ function roundCapacity(value, step = 5) {
   return Math.max(step, Math.round(value / step) * step);
 }
 
+function openMsconsMerge() {
+  if (!state.documents.length) {
+    window.alert("Bitte zuerst MSCONS-Dateien laden.");
+    return;
+  }
+  if (runtimeConfig.analysisPassword && !mergeUnlocked) {
+    const value = window.prompt("Passwort für MSCONS-Zusammenführung");
+    if (value !== runtimeConfig.analysisPassword) {
+      window.alert("Passwort nicht korrekt.");
+      return;
+    }
+    mergeUnlocked = true;
+  }
+  renderMsconsMerge({ rebuild: true });
+  openDialog(els.mergeDialog);
+}
+
+function renderMsconsMerge(options = {}) {
+  if (options.rebuild || !mergeRowsCache.length) {
+    mergeRowsCache = buildMergedLoadProfiles();
+  }
+  const min = Number(els.mergeMinSum.value || 0);
+  const max = Number(els.mergeMaxSum.value || 0);
+  const rows = mergeRowsCache.filter((row) => {
+    if (Number.isFinite(min) && min > 0 && row.annualSum < min) return false;
+    if (Number.isFinite(max) && max > 0 && row.annualSum > max) return false;
+    return true;
+  });
+
+  mergeSelectedKeys.clear();
+  for (const row of rows) mergeSelectedKeys.add(row.key);
+  els.mergeContent.innerHTML = "";
+
+  const summary = document.createElement("p");
+  summary.className = "analysis-note";
+  summary.textContent = `${rows.length} von ${mergeRowsCache.length} Zählpunkt/OBIS-Kombinationen im Filter.`;
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap analysis-table-wrap";
+  const table = document.createElement("table");
+  table.className = "analysis-table";
+  const thead = document.createElement("thead");
+  const header = document.createElement("tr");
+  for (const label of ["✓", "Zählpunkt", "OBIS", "von", "bis", "Werte", "Summe", "Jahressumme", "Dateien"]) {
+    const th = document.createElement("th");
+    th.textContent = label;
+    header.append(th);
+  }
+  thead.append(header);
+
+  const tbody = document.createElement("tbody");
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    tr.dataset.mergeKey = row.key;
+    const select = document.createElement("td");
+    select.className = "select-col";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "row-check";
+    checkbox.checked = mergeSelectedKeys.has(row.key);
+    checkbox.setAttribute("aria-label", `${row.meteringPoint} ${row.obis} exportieren`);
+    select.append(checkbox);
+    tr.append(select);
+    appendCell(tr, row.meteringPoint);
+    appendCell(tr, row.obis, "mono");
+    appendCell(tr, formatDateTime(row.from));
+    appendCell(tr, formatDateTime(row.to));
+    appendCell(tr, formatNumber(row.points.length), "num");
+    appendCell(tr, `${formatNumber(row.sum)} kWh`, "num");
+    appendCell(tr, `${formatNumber(row.annualSum)} kWh`, "num");
+    appendCell(tr, String(row.sourceFiles.size), "num");
+    tbody.append(tr);
+  }
+  table.append(thead, tbody);
+  tableWrap.append(table);
+  els.mergeContent.append(summary, tableWrap);
+}
+
+function buildMergedLoadProfiles() {
+  const groups = new Map();
+  for (const documentState of state.documents) {
+    for (const series of documentState.parsed?.measurementSeries || []) {
+      const key = `${series.meteringPoint}||${series.obis}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          meteringPoint: series.meteringPoint,
+          obis: series.obis,
+          sender: series.sender,
+          receiver: series.receiver,
+          unit: series.points.find((point) => point.unit)?.unit || "KWH",
+          sourceFiles: new Set(),
+          pointMap: new Map(),
+        });
+      }
+      const group = groups.get(key);
+      group.sourceFiles.add(documentState.fileName);
+      if (!group.sender && series.sender) group.sender = series.sender;
+      if (!group.receiver && series.receiver) group.receiver = series.receiver;
+      for (const point of series.points) {
+        const pointKey = `${point.from || ""}||${point.to || ""}`;
+        group.pointMap.set(pointKey, { ...point, obis: series.obis, meteringPoint: series.meteringPoint });
+      }
+    }
+  }
+
+  return [...groups.values()].map((group) => {
+    const points = [...group.pointMap.values()].sort((a, b) => comparePointTime(a, b));
+    const sum = points.reduce((value, point) => value + (Number(point.quantity) || 0), 0);
+    const days = countProfileDays(points);
+    return {
+      ...group,
+      points,
+      sum,
+      days,
+      annualSum: days >= 330 ? sum : (sum / Math.max(days, 1)) * 365,
+      from: points[0]?.from || "",
+      to: points[points.length - 1]?.to || "",
+    };
+  }).sort((a, b) => a.meteringPoint.localeCompare(b.meteringPoint, "de") || a.obis.localeCompare(b.obis, "de"));
+}
+
+function comparePointTime(a, b) {
+  return (parseDateValue(a.from) || 0) - (parseDateValue(b.from) || 0) || (parseDateValue(a.to) || 0) - (parseDateValue(b.to) || 0);
+}
+
+function countProfileDays(points) {
+  const days = new Set();
+  for (const point of points) {
+    const time = parseDateValue(point.from);
+    if (!time) continue;
+    const date = new Date(time);
+    days.add(`${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`);
+  }
+  return days.size;
+}
+
+function exportMergedMsconsSelection() {
+  const selected = mergeRowsCache.filter((row) => mergeSelectedKeys.has(row.key));
+  if (!selected.length) {
+    window.alert("Keine Zählpunkt/OBIS-Kombination ausgewählt.");
+    return;
+  }
+  const byMeteringPoint = new Map();
+  for (const row of selected) {
+    if (!byMeteringPoint.has(row.meteringPoint)) byMeteringPoint.set(row.meteringPoint, []);
+    byMeteringPoint.get(row.meteringPoint).push(row);
+  }
+  const files = [];
+  for (const [meteringPoint, rows] of byMeteringPoint) {
+    files.push({
+      name: `${safeFilePart(meteringPoint)}_MSCONS.txt`,
+      content: buildMsconsDocument(rows),
+    });
+  }
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+  download(`MSCONS_Zusammenfuehrung_${stamp}.zip`, "application/zip", createZipArchive(files));
+}
+
+function buildMsconsDocument(rowsOrRow) {
+  const rows = Array.isArray(rowsOrRow) ? rowsOrRow : [rowsOrRow];
+  const primary = rows[0];
+  if (!primary) return "";
+  const sender = primary.sender || "SENDER";
+  const receiver = primary.receiver || "RECEIVER";
+  const now = new Date();
+  const ref = `MERGE${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+  const docNo = `MSCONS_${safeFilePart(primary.meteringPoint)}_${ref}`;
+  const segments = [];
+  segments.push(`UNB+UNOC:3+${sender}+${receiver}+${String(now.getFullYear()).slice(2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}:${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}+${ref}`);
+  const unhIndex = segments.length;
+  segments.push("UNH+1+MSCONS:D:04B:UN:2.4c");
+  segments.push(`BGM+7+${docNo}+9`);
+  segments.push(`DTM+137:${dateToEdifactLocal(now)}:203`);
+  segments.push(`NAD+MS+${sender}`);
+  segments.push(`NAD+MR+${receiver}`);
+  for (const row of [...rows].sort((a, b) => a.obis.localeCompare(b.obis, "de"))) {
+    segments.push(`LOC+172:${row.meteringPoint}`);
+    segments.push(`PIA+5+${row.obis}`);
+    for (const point of row.points) {
+      segments.push(`QTY+220:${formatEdifactNumber(point.quantity)}:${point.unit || row.unit || "KWH"}`);
+      if (point.from) segments.push(`DTM+163:${marketDateToUtcDigits(point.from)}:303`);
+      if (point.to) segments.push(`DTM+164:${marketDateToUtcDigits(point.to)}:303`);
+      if (point.status) segments.push(`STS+${point.status}`);
+    }
+  }
+  const untCount = segments.length - unhIndex + 1;
+  segments.push(`UNT+${untCount}+1`);
+  segments.push(`UNZ+1+${ref}`);
+  return `UNA:+.? '\n${segments.join("'\n")}'\n`;
+}
+
+function marketDateToUtcDigits(value) {
+  const time = parseDateValue(value);
+  if (!time) return String(value || "").replace(/\D/g, "").slice(0, 14);
+  const date = new Date(time);
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+    String(date.getUTCHours()).padStart(2, "0"),
+    String(date.getUTCMinutes()).padStart(2, "0"),
+    String(date.getUTCSeconds()).padStart(2, "0"),
+  ].join("");
+}
+
+function dateToEdifactLocal(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+    String(date.getHours()).padStart(2, "0"),
+    String(date.getMinutes()).padStart(2, "0"),
+  ].join("");
+}
+
+function formatEdifactNumber(value) {
+  const number = Number(value) || 0;
+  return String(Math.round(number * 1000000) / 1000000).replace(",", ".");
+}
+
+function safeFilePart(value) {
+  return String(value || "wert").replace(/[^a-z0-9._-]+/gi, "_").replace(/^_+|_+$/g, "") || "wert";
+}
+
+function createZipArchive(files) {
+  const encoder = new TextEncoder();
+  const now = new Date();
+  const stamp = toZipDateTime(now);
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const nameBytes = encoder.encode(file.name);
+    const dataBytes = encoder.encode(file.content);
+    const crc = crc32(dataBytes);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(localHeader.buffer);
+    writeUint32(localView, 0, 0x04034b50);
+    writeUint16(localView, 4, 20);
+    writeUint16(localView, 6, 0);
+    writeUint16(localView, 8, 0);
+    writeUint16(localView, 10, stamp.time);
+    writeUint16(localView, 12, stamp.date);
+    writeUint32(localView, 14, crc);
+    writeUint32(localView, 18, dataBytes.length);
+    writeUint32(localView, 22, dataBytes.length);
+    writeUint16(localView, 26, nameBytes.length);
+    writeUint16(localView, 28, 0);
+    localHeader.set(nameBytes, 30);
+    localParts.push(localHeader, dataBytes);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+    writeUint32(centralView, 0, 0x02014b50);
+    writeUint16(centralView, 4, 20);
+    writeUint16(centralView, 6, 20);
+    writeUint16(centralView, 8, 0);
+    writeUint16(centralView, 10, 0);
+    writeUint16(centralView, 12, stamp.time);
+    writeUint16(centralView, 14, stamp.date);
+    writeUint32(centralView, 16, crc);
+    writeUint32(centralView, 20, dataBytes.length);
+    writeUint32(centralView, 24, dataBytes.length);
+    writeUint16(centralView, 28, nameBytes.length);
+    writeUint16(centralView, 30, 0);
+    writeUint16(centralView, 32, 0);
+    writeUint16(centralView, 34, 0);
+    writeUint16(centralView, 36, 0);
+    writeUint32(centralView, 38, 0);
+    writeUint32(centralView, 42, offset);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader);
+    offset += localHeader.length + dataBytes.length;
+  }
+
+  const centralOffset = offset;
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endHeader = new Uint8Array(22);
+  const endView = new DataView(endHeader.buffer);
+  writeUint32(endView, 0, 0x06054b50);
+  writeUint16(endView, 4, 0);
+  writeUint16(endView, 6, 0);
+  writeUint16(endView, 8, files.length);
+  writeUint16(endView, 10, files.length);
+  writeUint32(endView, 12, centralSize);
+  writeUint32(endView, 16, centralOffset);
+  writeUint16(endView, 20, 0);
+
+  return concatBytes([...localParts, ...centralParts, endHeader]);
+}
+
+function makeCrcTable() {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let value = i;
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    table[i] = value >>> 0;
+  }
+  return table;
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = ZIP_CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function toZipDateTime(date) {
+  return {
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date: ((Math.max(date.getFullYear(), 1980) - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
+  };
+}
+
+function writeUint16(view, offset, value) {
+  view.setUint16(offset, value, true);
+}
+
+function writeUint32(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+}
+
+function concatBytes(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    result.set(part, offset);
+    offset += part.length;
+  }
+  return result;
+}
+
 function openDialog(dialog) {
   try {
     if (typeof dialog.showModal === "function" && !dialog.open) {
@@ -2321,10 +2672,43 @@ function wireEvents() {
     if (event.target === els.analysisDialog) closeDialog(els.analysisDialog);
   });
 
+  els.mergeClose.addEventListener("click", () => {
+    closeDialog(els.mergeDialog);
+  });
+
+  els.mergeDialog.addEventListener("click", (event) => {
+    if (event.target === els.mergeDialog) closeDialog(els.mergeDialog);
+  });
+
+  els.mergeApply.addEventListener("click", () => {
+    renderMsconsMerge();
+  });
+
+  els.mergeExport.addEventListener("click", () => {
+    exportMergedMsconsSelection();
+  });
+
+  els.mergeContent.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("input.row-check");
+    if (!checkbox) return;
+    const row = event.target.closest("[data-merge-key]");
+    if (!row) return;
+    if (checkbox.checked) {
+      mergeSelectedKeys.add(row.dataset.mergeKey);
+    } else {
+      mergeSelectedKeys.delete(row.dataset.mergeKey);
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
-    if (!(event.ctrlKey && event.altKey && event.key.toLowerCase() === "p")) return;
-    event.preventDefault();
-    openPvAnalysis();
+    if (event.ctrlKey && event.altKey && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      openPvAnalysis();
+    }
+    if (event.ctrlKey && event.altKey && event.key.toLowerCase() === "m") {
+      event.preventDefault();
+      openMsconsMerge();
+    }
   });
 
   els.treeToggle.addEventListener("click", () => {

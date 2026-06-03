@@ -231,6 +231,34 @@
       </div>
     </dialog>
 
+    <dialog id="mergeDialog" class="info-dialog analysis-dialog">
+      <div class="modal-panel">
+        <div class="modal-heading">
+          <div>
+            <h2>MSCONS zusammenführen</h2>
+            <span>Alle geladenen Dateien nach Zählpunkt und OBIS bündeln</span>
+          </div>
+          <button id="mergeClose" class="icon-button" type="button" aria-label="MSCONS-Zusammenführung schließen">×</button>
+        </div>
+        <div class="analysis-content merge-content">
+          <div class="merge-controls">
+            <label>
+              <span>Jahressumme von</span>
+              <input id="mergeMinSum" type="number" min="0" step="1" placeholder="kWh" />
+            </label>
+            <label>
+              <span>bis</span>
+              <input id="mergeMaxSum" type="number" min="0" step="1" placeholder="kWh" />
+            </label>
+            <button id="mergeApply" class="secondary-button" type="button">Filter</button>
+            <button id="mergeExport" class="primary-button" type="button">Auswahl als ZIP</button>
+          </div>
+          <p class="analysis-note">Aus allen geladenen Dateien werden gleiche Kombinationen aus Zählpunkt und OBIS zusammengeführt. Exakte doppelte Zeiträume werden beim Export nur einmal übernommen.</p>
+          <div id="mergeContent"></div>
+        </div>
+      </div>
+    </dialog>
+
     <template id="emptyRowTemplate">
       <tr>
         <td colspan="5" class="empty">Noch keine Daten geladen.</td>

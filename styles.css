@@ -836,6 +836,27 @@ td.num {
   line-height: 1.45;
 }
 
+.merge-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.merge-controls label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.merge-controls input {
+  width: 140px;
+  min-height: 36px;
+}
+
 .insight-strip {
   display: grid;
   grid-template-columns: 1fr;
