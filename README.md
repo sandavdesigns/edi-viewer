@@ -107,7 +107,7 @@ Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Date
 
 ### Versteckte MSCONS-Zusammenführung
 
-Mit `Strg+Alt+M` kann ein verstecktes Werkzeug zum Zusammenführen aller aktuell geladenen MSCONS-Dateien geöffnet werden. Es gruppiert alle Lastgänge nach `Zählpunkt + OBIS`, berechnet Summen/Jahressummen, erlaubt die Auswahl nach Jahressumme und exportiert die ausgewählten OBIS zählpunktscharf als neue MSCONS-Dateien in einer ZIP-Datei. Exakte doppelte Zeiträume werden beim Zusammenführen dedupliziert.
+Mit `Strg+Alt+M` kann ein verstecktes Werkzeug zum Zusammenführen aller aktuell geladenen MSCONS-Dateien geöffnet werden. Es gruppiert alle Lastgänge nach `Zählpunkt + OBIS`, berechnet Summen/Jahressummen, erlaubt die Auswahl nach Jahressumme und exportiert die ausgewählten OBIS zählpunktscharf als neue MSCONS-Dateien in einer ZIP-Datei. Zusätzlich enthält die ZIP eine Sammel-MSCONS mit allen ausgewählten Kombinationen. Exakte doppelte Zeiträume werden beim Zusammenführen dedupliziert.
 
 ### Portainer-Hinweis
 

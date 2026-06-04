@@ -2025,6 +2025,10 @@ function exportMergedMsconsSelection() {
       content: buildMsconsDocument(rows),
     });
   }
+  files.push({
+    name: "ZZ_ALLE_ZAEHLPUNKTE_MSCONS.txt",
+    content: buildMsconsDocument(selected),
+  });
   const now = new Date();
   const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   download(`MSCONS_Zusammenfuehrung_${stamp}.zip`, "application/zip", createZipArchive(files));

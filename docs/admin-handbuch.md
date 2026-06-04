@@ -143,6 +143,7 @@ Funktion:
 - je Kombination werden Zeitraum, Anzahl Werte, Summe, Jahressumme und Anzahl Quelldateien angezeigt
 - über `Jahressumme von/bis` können passende Kombinationen gefiltert werden
 - ausgewählte Kombinationen können zählpunktscharf als ZIP exportiert werden; mehrere ausgewählte OBIS desselben Zählpunkts landen gemeinsam in einer MSCONS-Datei innerhalb der ZIP
+- zusätzlich enthält die ZIP eine Sammeldatei `ZZ_ALLE_ZAEHLPUNKTE_MSCONS.txt` mit allen ausgewählten Kombinationen
 
 Hinweis: Die exportierten MSCONS-Dateien werden neu aus dem internen Lastgangmodell erzeugt. Sie sind kein 1:1 Segment-Schnitt der Originaldateien. Vor produktiver Weitergabe sollten sie fachlich und prozessual geprüft werden.
 
