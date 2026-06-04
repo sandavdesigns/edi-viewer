@@ -816,6 +816,12 @@ td.num {
   border-radius: 6px;
 }
 
+.pv-analysis-table-wrap {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
 .analysis-table {
   min-width: 980px;
 }

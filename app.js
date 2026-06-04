@@ -1740,7 +1740,7 @@ function renderPvAnalysis() {
   note.textContent = "Hinweis: Die Werte sind eine Lastprofil-Heuristik ohne Standort, Dachflaeche, Ausrichtung, Verschattung, Strompreis und Einspeiseverguetung. Sie ersetzen keine technische oder wirtschaftliche Planung.";
 
   const tableWrap = document.createElement("div");
-  tableWrap.className = "table-wrap analysis-table-wrap";
+  tableWrap.className = "table-wrap analysis-table-wrap pv-analysis-table-wrap";
   const table = document.createElement("table");
   table.className = "analysis-table";
   const thead = document.createElement("thead");
