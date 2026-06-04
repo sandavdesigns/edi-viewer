@@ -1756,7 +1756,7 @@ function renderPvAnalysis() {
     const tr = document.createElement("tr");
     appendCell(tr, row.meteringPoint);
     appendCell(tr, `${row.days} Tage${row.fullYear ? "" : " (kein volles Jahr)"}`);
-    appendCell(tr, `${formatNumber(row.total)} kWh`);
+    appendCell(tr, `${formatNumber(row.total)} kWh`, "pv-consumption-cell");
     appendCell(tr, `${formatNumber(row.pvShare)} %`);
     appendCell(tr, `${formatNumber(row.eveningShare)} % / ${formatNumber(row.nightShare)} %`);
     appendCell(tr, `${formatNumber(row.pvLow)}-${formatNumber(row.pvHigh)} kWp`);
