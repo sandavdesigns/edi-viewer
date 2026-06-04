@@ -808,7 +808,7 @@ td.num {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 12px 16px 44px;
+  padding: 12px 16px 96px;
   color: var(--text-table);
   font-size: 0.88rem;
 }
@@ -850,7 +850,7 @@ td.num {
 }
 
 .analysis-card:last-child {
-  margin-bottom: 16px;
+  margin-bottom: 48px;
 }
 
 .analysis-card h3 {
