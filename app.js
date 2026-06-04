@@ -1742,7 +1742,7 @@ function renderPvAnalysis() {
   const tableWrap = document.createElement("div");
   tableWrap.className = "table-wrap analysis-table-wrap pv-analysis-table-wrap";
   const table = document.createElement("table");
-  table.className = "analysis-table";
+  table.className = "analysis-table pv-analysis-table";
   const thead = document.createElement("thead");
   const header = document.createElement("tr");
   for (const label of ["Zaehlpunkt", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschaetzung"]) {

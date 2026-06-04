@@ -728,7 +728,7 @@ td.num {
 }
 
 .analysis-dialog {
-  width: min(1180px, calc(100vw - 32px));
+  width: min(1440px, calc(100vw - 24px));
 }
 
 .analysis-dialog .modal-panel {
@@ -833,6 +833,15 @@ td.num {
 
 .analysis-table {
   min-width: 980px;
+}
+
+.pv-analysis-table {
+  min-width: 1320px;
+}
+
+.pv-analysis-table th,
+.pv-analysis-table td {
+  white-space: nowrap;
 }
 
 .analysis-card {
