@@ -712,6 +712,7 @@ td.num {
 .info-dialog {
   width: min(620px, calc(100vw - 32px));
   max-height: min(680px, calc(100vh - 32px));
+  overflow: hidden;
   padding: 0;
   border: 0;
   border-radius: 8px;
@@ -730,12 +731,19 @@ td.num {
   width: min(1180px, calc(100vw - 32px));
 }
 
+.analysis-dialog .modal-panel {
+  max-height: min(760px, calc(100vh - 32px));
+}
+
 .info-dialog::backdrop {
   background: var(--modal-backdrop);
   backdrop-filter: blur(3px);
 }
 
 .modal-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(680px, calc(100vh - 32px));
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
@@ -797,7 +805,8 @@ td.num {
 }
 
 .analysis-content {
-  max-height: min(720px, calc(100vh - 150px));
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 12px 16px 16px;
   color: var(--text-table);
