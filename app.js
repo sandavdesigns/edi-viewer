@@ -34,6 +34,7 @@ const MEASUREMENT_PLOT = { x: 44, y: 28, width: 1018, height: 278 };
 const MEASUREMENT_AXIS_LABEL_Y = MEASUREMENT_CHART_HEIGHT - 30;
 const MAX_CHART_POINTS = 1100;
 const THEME_STORAGE_KEY = "edi-viewer-theme";
+const DECIMAL_SUM_SCALE = 1000000;
 const runtimeConfig = normalizeRuntimeConfig(window.EDI_VIEWER_CONFIG);
 const MARKET_TIME_ZONE = "Europe/Berlin";
 const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
@@ -649,7 +650,7 @@ function buildMeasurementSeries(points) {
     const series = seriesByKey.get(key);
     series.points.push(point);
     series.pointCount += 1;
-    series.quantity += point.quantity;
+    series.quantity = unitsToDecimal(decimalUnits(series.quantity) + decimalUnits(point.quantity));
     if (!series.from || series.from === "-") series.from = point.from;
     series.to = point.to || series.to;
     if (point.quantity < series.minimum) {
@@ -747,6 +748,20 @@ function splitEdifactDateRange(value) {
 
 function normalizeDecimal(value) {
   return String(value || "").replace(",", ".");
+}
+
+function decimalUnits(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.round(number * DECIMAL_SUM_SCALE);
+}
+
+function unitsToDecimal(value) {
+  return value / DECIMAL_SUM_SCALE;
+}
+
+function preciseSum(values) {
+  return unitsToDecimal(values.reduce((sum, value) => sum + decimalUnits(value), 0));
 }
 
 function shortFileName(name) {
@@ -975,7 +990,7 @@ function groupBy(rows, keyFn) {
 }
 
 function sumRows(rows) {
-  return rows.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+  return preciseSum(rows.map((row) => row.quantity));
 }
 
 function formatBytes(bytes) {
@@ -1055,7 +1070,7 @@ function renderMeasurementTable(parsed) {
     appendCell(tr, row.obis, "mono");
     appendCell(tr, formatDateTime(summary.from));
     appendCell(tr, formatDateTime(summary.to));
-    appendCell(tr, formatNumber(summary.quantity), "num");
+    appendCell(tr, formatSumNumber(summary.quantity), "num");
     appendCell(tr, formatNumber(summary.minimum), "num");
     appendCell(tr, formatDateTime(summary.minimumAt));
     appendCell(tr, formatNumber(summary.maximum), "num");
@@ -1170,9 +1185,9 @@ function updateTableFooter(countEl, moreButton, visible, total, label) {
 
 function updateMeasurementFooter(visible, rows) {
   const total = rows.length;
-  const sum = rows.reduce((value, row) => value + (Number(row.quantity) || 0), 0);
+  const sum = preciseSum(rows.map((row) => row.quantity));
   els.measurementCount.textContent = total ? `${visible} von ${total} Lastgänge` : "0 Lastgänge";
-  els.measurementSum.textContent = total ? `Summe: ${formatNumber(sum)}` : "";
+  els.measurementSum.textContent = total ? `Summe: ${formatSumNumber(sum)}` : "";
   els.measurementMore.toggleAttribute("hidden", visible >= total);
 }
 
@@ -1220,14 +1235,14 @@ function filterPointsByRange(points, start, end) {
 function summarizeSeries(row) {
   const points = getFilteredSeriesPoints(row);
   if (!points.length) return { ...row, points: [], pointCount: 0, quantity: 0, minimum: 0, minimumAt: "", maximum: 0, maximumAt: "", from: "", to: "" };
-  let quantity = 0;
+  let quantityUnits = 0;
   let minimum = Number.POSITIVE_INFINITY;
   let maximum = Number.NEGATIVE_INFINITY;
   let minimumAt = "";
   let maximumAt = "";
   for (const point of points) {
     const value = Number(point.quantity) || 0;
-    quantity += value;
+    quantityUnits += decimalUnits(value);
     if (value < minimum) {
       minimum = value;
       minimumAt = point.from;
@@ -1241,7 +1256,7 @@ function summarizeSeries(row) {
     ...row,
     points,
     pointCount: points.length,
-    quantity,
+    quantity: unitsToDecimal(quantityUnits),
     minimum,
     minimumAt,
     maximum,
@@ -1557,6 +1572,10 @@ function formatNumber(value) {
   return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 3 }).format(Number(value) || 0);
 }
 
+function formatSumNumber(value) {
+  return new Intl.NumberFormat("de-DE", { minimumFractionDigits: 3, maximumFractionDigits: 6 }).format(Number(value) || 0);
+}
+
 function formatCsvNumber(value) {
   if (value === null || value === undefined || value === "") return "";
   const number = Number(value);
@@ -1642,7 +1661,7 @@ function renderSeriesInsights(parsed) {
   const points = getFilteredSeriesPoints(series);
   const stats = summarizeInsightPoints(points);
   appendInsight("Werte", formatNumber(stats.count));
-  appendInsight("Summe", formatNumber(stats.sum));
+  appendInsight("Summe", formatSumNumber(stats.sum));
   appendInsight("Min / Max", stats.count ? `${formatNumber(stats.min)} / ${formatNumber(stats.max)}` : "-");
   appendInsight("Durchschnitt", stats.count ? formatNumber(stats.sum / stats.count) : "-");
   appendInsight("Lücken", String(stats.gaps));
@@ -1665,7 +1684,7 @@ function summarizeInsightPoints(points) {
     return { count: 0, sum: 0, min: 0, max: 0, gaps: 0, status: "-" };
   }
 
-  let sum = 0;
+  let sumUnits = 0;
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   const statusCounts = new Map();
@@ -1674,7 +1693,7 @@ function summarizeInsightPoints(points) {
 
   for (const point of points) {
     const value = Number(point.quantity) || 0;
-    sum += value;
+    sumUnits += decimalUnits(value);
     if (value < min) min = value;
     if (value > max) max = value;
 
@@ -1700,7 +1719,7 @@ function summarizeInsightPoints(points) {
     .map(([key, count]) => `${key}: ${count}`)
     .join(", ");
 
-  return { count: points.length, sum, min, max, gaps, status };
+  return { count: points.length, sum: unitsToDecimal(sumUnits), min, max, gaps, status };
 }
 
 function median(values) {
@@ -1756,7 +1775,7 @@ function renderPvAnalysis() {
     const tr = document.createElement("tr");
     appendCell(tr, row.meteringPoint);
     appendCell(tr, `${row.days} Tage${row.fullYear ? "" : " (kein volles Jahr)"}`);
-    appendCell(tr, `${formatNumber(row.total)} kWh`, "pv-consumption-cell");
+    appendCell(tr, `${formatSumNumber(row.total)} kWh`, "pv-consumption-cell");
     appendCell(tr, `${formatNumber(row.pvShare)} %`);
     appendCell(tr, `${formatNumber(row.eveningShare)} % / ${formatNumber(row.nightShare)} %`);
     appendCell(tr, `${formatNumber(row.pvLow)}-${formatNumber(row.pvHigh)} kWp`);
@@ -1787,28 +1806,29 @@ function analyzePvPotential(series) {
   const points = series?.points || [];
   if (!points.length) return null;
 
-  let total = 0;
-  let pvWindow = 0;
-  let corePvWindow = 0;
-  let evening = 0;
-  let night = 0;
+  let totalUnits = 0;
+  let pvWindowUnits = 0;
+  let corePvWindowUnits = 0;
+  let eveningUnits = 0;
+  let nightUnits = 0;
   const daily = new Map();
   let firstTime = Number.POSITIVE_INFINITY;
   let lastTime = 0;
 
   for (const point of points) {
     const value = Number(point.quantity) || 0;
+    const valueUnits = decimalUnits(value);
     const time = parseDateValue(point.from);
     if (!time) continue;
     const date = new Date(time);
     const hour = date.getHours();
     const day = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
-    total += value;
-    if (hour >= 8 && hour < 18) pvWindow += value;
-    if (hour >= 10 && hour < 16) corePvWindow += value;
-    if (hour >= 18 && hour < 23) evening += value;
-    if (hour >= 23 || hour < 6) night += value;
+    totalUnits += valueUnits;
+    if (hour >= 8 && hour < 18) pvWindowUnits += valueUnits;
+    if (hour >= 10 && hour < 16) corePvWindowUnits += valueUnits;
+    if (hour >= 18 && hour < 23) eveningUnits += valueUnits;
+    if (hour >= 23 || hour < 6) nightUnits += valueUnits;
     daily.set(day, (daily.get(day) || 0) + value);
     if (time < firstTime) firstTime = time;
     if (time > lastTime) lastTime = time;
@@ -1816,6 +1836,11 @@ function analyzePvPotential(series) {
 
   const days = Math.max(daily.size, 1);
   const fullYear = days >= 330;
+  const total = unitsToDecimal(totalUnits);
+  const pvWindow = unitsToDecimal(pvWindowUnits);
+  const corePvWindow = unitsToDecimal(corePvWindowUnits);
+  const evening = unitsToDecimal(eveningUnits);
+  const night = unitsToDecimal(nightUnits);
   const annualTotal = fullYear ? total : (total / days) * 365;
   const avgDay = total / days;
   const eveningPerDay = evening / days;
@@ -1938,8 +1963,8 @@ function renderMsconsMerge(options = {}) {
     appendCell(tr, formatDateTime(row.from));
     appendCell(tr, formatDateTime(row.to));
     appendCell(tr, formatNumber(row.points.length), "num");
-    appendCell(tr, `${formatNumber(row.sum)} kWh`, "num");
-    appendCell(tr, `${formatNumber(row.annualSum)} kWh`, "num");
+    appendCell(tr, `${formatSumNumber(row.sum)} kWh`, "num");
+    appendCell(tr, `${formatSumNumber(row.annualSum)} kWh`, "num");
     appendCell(tr, String(row.sourceFiles.size), "num");
     tbody.append(tr);
   }
@@ -1978,7 +2003,7 @@ function buildMergedLoadProfiles() {
 
   return [...groups.values()].map((group) => {
     const points = [...group.pointMap.values()].sort((a, b) => comparePointTime(a, b));
-    const sum = points.reduce((value, point) => value + (Number(point.quantity) || 0), 0);
+    const sum = preciseSum(points.map((point) => point.quantity));
     const days = countProfileDays(points);
     return {
       ...group,
@@ -2343,7 +2368,7 @@ function currentMeasurementCopyData() {
       { label: "OBIS", value: (row) => row.obis },
       { label: "von", value: (row) => formatDateTime(row.from) },
       { label: "bis", value: (row) => formatDateTime(row.to) },
-      { label: "Menge", value: (row) => formatNumber(row.quantity) },
+      { label: "Menge", value: (row) => formatSumNumber(row.quantity) },
       { label: "Minimum", value: (row) => formatNumber(row.minimum) },
       { label: "Minimum am", value: (row) => formatDateTime(row.minimumAt) },
       { label: "Maximum", value: (row) => formatNumber(row.maximum) },
