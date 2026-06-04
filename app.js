@@ -424,6 +424,8 @@ function extractMeasurementRows(segments, facts) {
     obis: "",
     start: "",
     end: "",
+    startSort: null,
+    endSort: null,
     status: "",
     thirdParty: "",
   };
@@ -433,6 +435,8 @@ function extractMeasurementRows(segments, facts) {
     if (!pending) return;
     pending.from = pending.from || context.start || "-";
     pending.to = pending.to || context.end || pending.from;
+    pending.fromSort = pending.fromSort ?? context.startSort ?? null;
+    pending.toSort = pending.toSort ?? context.endSort ?? pending.fromSort ?? null;
     pending.minimumAt = pending.from;
     pending.maximumAt = pending.to;
     rows.push(pending);
@@ -465,9 +469,16 @@ function extractMeasurementRows(segments, facts) {
     if (segment.tag === "DTM") {
       const { qualifier, value, format } = dtmParts(segment);
       const formatted = formatEdifactDate(value, format);
+      const sortValue = edifactDateSortValue(value, format);
       const target = pending || context;
-      if (["163", "324", "157"].includes(qualifier)) target.start = formatted;
-      if (["164", "158"].includes(qualifier)) target.end = formatted;
+      if (["163", "324", "157"].includes(qualifier)) {
+        target.start = formatted;
+        target.startSort = sortValue;
+      }
+      if (["164", "158"].includes(qualifier)) {
+        target.end = formatted;
+        target.endSort = sortValue;
+      }
       if (["718", "719"].includes(format) && splitEdifactDateRange(value)) {
         const [start, end] = formatted.split(" bis ");
         target.start = start || target.start;
@@ -476,6 +487,8 @@ function extractMeasurementRows(segments, facts) {
       if (pending) {
         pending.from = pending.start || pending.from;
         pending.to = pending.end || pending.to;
+        pending.fromSort = pending.startSort ?? pending.fromSort;
+        pending.toSort = pending.endSort ?? pending.toSort;
       }
     }
 
@@ -495,6 +508,8 @@ function extractMeasurementRows(segments, facts) {
       obis: context.obis || qualifier || "-",
       from: "",
       to: "",
+      fromSort: null,
+      toSort: null,
       quantity: value,
       unit,
       minimum,
@@ -537,6 +552,8 @@ function extractAlocatRows(segments, facts) {
         obis: point.obis || "Z03",
         from: point.from || context.documentStart || "-",
         to: point.to || context.documentEnd || point.from || "-",
+        fromSort: point.fromSort ?? null,
+        toSort: point.toSort ?? point.fromSort ?? null,
         quantity: point.quantity,
         unit: point.unit || "",
         minimum: point.quantity,
@@ -565,14 +582,15 @@ function extractAlocatRows(segments, facts) {
       const range = ["2", "Z01"].includes(qualifier) ? splitEdifactDateRange(value) : null;
       if (range) {
         const formatted = range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102"));
+        const sortValues = range.map((part) => edifactDateSortValue(part, part.length >= 12 ? "203" : "102"));
         if (qualifier === "Z01") {
           context.documentStart = formatted[0] || context.documentStart;
           context.documentEnd = formatted[1] || context.documentEnd;
         } else {
-          pendingPeriod = { from: formatted[0] || "", to: formatted[1] || "" };
+          pendingPeriod = { from: formatted[0] || "", to: formatted[1] || "", fromSort: sortValues[0] ?? null, toSort: sortValues[1] ?? null };
         }
       } else if (format === "203" && qualifier === "2") {
-        pendingPeriod = { from: formatEdifactDate(value, format), to: "" };
+        pendingPeriod = { from: formatEdifactDate(value, format), to: "", fromSort: edifactDateSortValue(value, format), toSort: null };
       }
     }
 
@@ -604,6 +622,8 @@ function extractAlocatRows(segments, facts) {
         obis: qualifier || "Z03",
         from: pendingPeriod?.from || "",
         to: pendingPeriod?.to || "",
+        fromSort: pendingPeriod?.fromSort ?? null,
+        toSort: pendingPeriod?.toSort ?? pendingPeriod?.fromSort ?? null,
         quantity,
         unit: segment.elements[0]?.[2] || "",
         status: "",
@@ -634,6 +654,8 @@ function buildMeasurementSeries(points) {
         obis: point.obis,
         from: point.from,
         to: point.to,
+        fromSort: point.fromSort ?? null,
+        toSort: point.toSort ?? null,
         quantity: 0,
         minimum: point.quantity,
         minimumAt: point.from,
@@ -653,6 +675,14 @@ function buildMeasurementSeries(points) {
     series.quantity = unitsToDecimal(decimalUnits(series.quantity) + decimalUnits(point.quantity));
     if (!series.from || series.from === "-") series.from = point.from;
     series.to = point.to || series.to;
+    if (point.fromSort !== null && point.fromSort !== undefined && (series.fromSort === null || point.fromSort < series.fromSort)) {
+      series.fromSort = point.fromSort;
+      series.from = point.from;
+    }
+    if (point.toSort !== null && point.toSort !== undefined && (series.toSort === null || point.toSort > series.toSort)) {
+      series.toSort = point.toSort;
+      series.to = point.to;
+    }
     if (point.quantity < series.minimum) {
       series.minimum = point.quantity;
       series.minimumAt = point.from;
@@ -713,6 +743,25 @@ function formatEdifactDate(value, format) {
     if (range) return range.map((part) => formatEdifactDate(part, part.length >= 12 ? "203" : "102")).join(" bis ");
   }
   return value;
+}
+
+function edifactDateSortValue(value, format) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return null;
+  if ((format === "203" || format === "303") && digits.length >= 12) {
+    return Date.UTC(
+      Number(digits.slice(0, 4)),
+      Number(digits.slice(4, 6)) - 1,
+      Number(digits.slice(6, 8)),
+      Number(digits.slice(8, 10)),
+      Number(digits.slice(10, 12)),
+      Number(digits.slice(12, 14) || 0),
+    );
+  }
+  if (format === "102" && digits.length >= 8) {
+    return new Date(Number(digits.slice(0, 4)), Number(digits.slice(4, 6)) - 1, Number(digits.slice(6, 8))).getTime();
+  }
+  return parseDateValue(formatEdifactDate(value, format));
 }
 
 function formatUtcMarketDateTime(value) {
@@ -1224,7 +1273,7 @@ function getFilteredSeriesPoints(series) {
 function filterPointsByRange(points, start, end) {
   if (!start && !end) return points;
   return points.filter((point) => {
-    const time = parseDateValue(point.from);
+    const time = pointSortValue(point, "from");
     if (!time) return true;
     if (start && time < start) return false;
     if (end && time > end) return false;
@@ -1263,7 +1312,15 @@ function summarizeSeries(row) {
     maximumAt,
     from: points[0]?.from || row.from,
     to: points[points.length - 1]?.to || row.to,
+    fromSort: points[0]?.fromSort ?? row.fromSort ?? null,
+    toSort: points[points.length - 1]?.toSort ?? row.toSort ?? null,
   };
+}
+
+function pointSortValue(point, boundary = "from") {
+  const sortKey = boundary === "to" ? "toSort" : "fromSort";
+  const textKey = boundary === "to" ? "to" : "from";
+  return point?.[sortKey] ?? parseDateValue(point?.[textKey]);
 }
 
 function includesFilter(value, filter) {
@@ -1700,7 +1757,7 @@ function summarizeInsightPoints(points) {
     const status = point.status || "-";
     statusCounts.set(status, (statusCounts.get(status) || 0) + 1);
 
-    const time = parseDateValue(point.from);
+    const time = pointSortValue(point, "from");
     if (previousTime && time && time > previousTime) intervals.push(time - previousTime);
     if (time) previousTime = time;
   }
@@ -1818,7 +1875,7 @@ function analyzePvPotential(series) {
   for (const point of points) {
     const value = Number(point.quantity) || 0;
     const valueUnits = decimalUnits(value);
-    const time = parseDateValue(point.from);
+    const time = pointSortValue(point, "from");
     if (!time) continue;
     const date = new Date(time);
     const hour = date.getHours();
@@ -1995,7 +2052,7 @@ function buildMergedLoadProfiles() {
       if (!group.sender && series.sender) group.sender = series.sender;
       if (!group.receiver && series.receiver) group.receiver = series.receiver;
       for (const point of series.points) {
-        const pointKey = `${point.from || ""}||${point.to || ""}`;
+        const pointKey = `${pointSortValue(point, "from") ?? point.from ?? ""}||${pointSortValue(point, "to") ?? point.to ?? ""}||${point.from || ""}||${point.to || ""}`;
         group.pointMap.set(pointKey, { ...point, obis: series.obis, meteringPoint: series.meteringPoint });
       }
     }
@@ -2013,18 +2070,23 @@ function buildMergedLoadProfiles() {
       annualSum: days >= 330 ? sum : (sum / Math.max(days, 1)) * 365,
       from: points[0]?.from || "",
       to: points[points.length - 1]?.to || "",
+      fromSort: points[0]?.fromSort ?? null,
+      toSort: points[points.length - 1]?.toSort ?? null,
     };
   }).sort((a, b) => a.meteringPoint.localeCompare(b.meteringPoint, "de") || a.obis.localeCompare(b.obis, "de"));
 }
 
 function comparePointTime(a, b) {
-  return (parseDateValue(a.from) || 0) - (parseDateValue(b.from) || 0) || (parseDateValue(a.to) || 0) - (parseDateValue(b.to) || 0);
+  return (pointSortValue(a, "from") || 0) - (pointSortValue(b, "from") || 0)
+    || (pointSortValue(a, "to") || 0) - (pointSortValue(b, "to") || 0)
+    || String(a.from || "").localeCompare(String(b.from || ""))
+    || String(a.to || "").localeCompare(String(b.to || ""));
 }
 
 function countProfileDays(points) {
   const days = new Set();
   for (const point of points) {
-    const time = parseDateValue(point.from);
+    const time = pointSortValue(point, "from");
     if (!time) continue;
     const date = new Date(time);
     days.add(`${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`);
@@ -2081,8 +2143,8 @@ function buildMsconsDocument(rowsOrRow) {
     segments.push(`PIA+5+${row.obis}`);
     for (const point of row.points) {
       segments.push(`QTY+220:${formatEdifactNumber(point.quantity)}:${point.unit || row.unit || "KWH"}`);
-      if (point.from) segments.push(`DTM+163:${marketDateToUtcDigits(point.from)}:303`);
-      if (point.to) segments.push(`DTM+164:${marketDateToUtcDigits(point.to)}:303`);
+      if (point.from) segments.push(`DTM+163:${marketDateToUtcDigits(point.from, point.fromSort)}:303`);
+      if (point.to) segments.push(`DTM+164:${marketDateToUtcDigits(point.to, point.toSort)}:303`);
       if (point.status) segments.push(`STS+${point.status}`);
     }
   }
@@ -2092,8 +2154,8 @@ function buildMsconsDocument(rowsOrRow) {
   return `UNA:+.? '\n${segments.join("'\n")}'\n`;
 }
 
-function marketDateToUtcDigits(value) {
-  const time = parseDateValue(value);
+function marketDateToUtcDigits(value, sortValue = null) {
+  const time = sortValue ?? parseDateValue(value);
   if (!time) return String(value || "").replace(/\D/g, "").slice(0, 14);
   const date = new Date(time);
   return [
@@ -2301,11 +2363,15 @@ function selectedLoadProfileRows(parsed, series) {
   const rowsByPeriod = new Map();
   for (const row of series) {
     for (const point of getFilteredSeriesPoints(row)) {
-      const key = `${point.from || ""}||${point.to || ""}`;
+      const fromSort = pointSortValue(point, "from");
+      const toSort = pointSortValue(point, "to");
+      const key = `${fromSort ?? point.from ?? ""}||${toSort ?? point.to ?? ""}||${point.from || ""}||${point.to || ""}`;
       if (!rowsByPeriod.has(key)) {
         rowsByPeriod.set(key, {
           fromRaw: point.from || "",
           toRaw: point.to || "",
+          fromSort,
+          toSort,
           from: formatDateTime(point.from),
           to: formatDateTime(point.to),
         });
@@ -2320,8 +2386,8 @@ function selectedLoadProfileRows(parsed, series) {
 }
 
 function compareExportPeriod(a, b) {
-  return (parseDateValue(a.fromRaw) || 0) - (parseDateValue(b.fromRaw) || 0)
-    || (parseDateValue(a.toRaw) || 0) - (parseDateValue(b.toRaw) || 0)
+  return (a.fromSort ?? parseDateValue(a.fromRaw) ?? 0) - (b.fromSort ?? parseDateValue(b.fromRaw) ?? 0)
+    || (a.toSort ?? parseDateValue(a.toRaw) ?? 0) - (b.toSort ?? parseDateValue(b.toRaw) ?? 0)
     || a.fromRaw.localeCompare(b.fromRaw)
     || a.toRaw.localeCompare(b.toRaw);
 }
