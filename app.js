@@ -2316,7 +2316,14 @@ function selectedLoadProfileRows(parsed, series) {
     }
   }
 
-  return [...rowsByPeriod.values()].sort((a, b) => a.fromRaw.localeCompare(b.fromRaw) || a.toRaw.localeCompare(b.toRaw));
+  return [...rowsByPeriod.values()].sort((a, b) => compareExportPeriod(a, b));
+}
+
+function compareExportPeriod(a, b) {
+  return (parseDateValue(a.fromRaw) || 0) - (parseDateValue(b.fromRaw) || 0)
+    || (parseDateValue(a.toRaw) || 0) - (parseDateValue(b.toRaw) || 0)
+    || a.fromRaw.localeCompare(b.fromRaw)
+    || a.toRaw.localeCompare(b.toRaw);
 }
 
 function exportSelectedLoadProfiles(suffix) {
