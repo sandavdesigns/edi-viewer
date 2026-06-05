@@ -124,15 +124,13 @@ Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und kennt keinen Stan
 
 Wichtig: Da die App statisch im Browser läuft, ist `APP_ANALYSIS_PASSWORD` nur ein einfacher UI-Schutz. Es ist kein sicherer Zugriffsschutz für vertrauliche Funktionen.
 
-## Versteckte MSCONS-Zusammenführung
+## MSCONS bündeln/trennen
 
-Die App enthält ein verstecktes Werkzeug, um mehrere geladene MSCONS-Dateien zusammenzuführen. Es wird über dieses Tastenkürzel geöffnet:
+Die App enthält ein offenes Werkzeug, um mehrere geladene MSCONS-Dateien zusammenzuführen und anschließend wieder zählpunktscharf zu trennen. Es wird über den Button **MSCONS bündeln/trennen** im Kopfbereich geöffnet. Zusätzlich bleibt dieses Tastenkürzel verfügbar:
 
 ```text
 Strg+Alt+M
 ```
-
-Wenn `APP_ANALYSIS_PASSWORD` gesetzt ist, fragt auch dieses Werkzeug nach dem Passwort.
 
 Funktion:
 

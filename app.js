@@ -49,7 +49,6 @@ const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
 const marketDateTimeCache = new Map();
 const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
 let analysisUnlocked = false;
-let mergeUnlocked = false;
 let mergeRowsCache = [];
 const mergeSelectedKeys = new Set();
 const ZIP_CRC_TABLE = makeCrcTable();
@@ -176,6 +175,7 @@ const els = {
   analysisClose: document.querySelector("#analysisClose"),
   analysisDialog: document.querySelector("#analysisDialog"),
   analysisContent: document.querySelector("#analysisContent"),
+  mergeOpen: document.querySelector("#mergeOpen"),
   mergeClose: document.querySelector("#mergeClose"),
   mergeDialog: document.querySelector("#mergeDialog"),
   mergeContent: document.querySelector("#mergeContent"),
@@ -1957,14 +1957,6 @@ function openMsconsMerge() {
     window.alert("Bitte zuerst MSCONS-Dateien laden.");
     return;
   }
-  if (runtimeConfig.analysisPassword && !mergeUnlocked) {
-    const value = window.prompt("Passwort für MSCONS-Zusammenführung");
-    if (value !== runtimeConfig.analysisPassword) {
-      window.alert("Passwort nicht korrekt.");
-      return;
-    }
-    mergeUnlocked = true;
-  }
   renderMsconsMerge({ rebuild: true });
   openDialog(els.mergeDialog);
 }
@@ -2772,6 +2764,10 @@ function wireEvents() {
 
   els.analysisDialog.addEventListener("click", (event) => {
     if (event.target === els.analysisDialog) closeDialog(els.analysisDialog);
+  });
+
+  els.mergeOpen.addEventListener("click", () => {
+    openMsconsMerge();
   });
 
   els.mergeClose.addEventListener("click", () => {
