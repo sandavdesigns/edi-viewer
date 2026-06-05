@@ -202,7 +202,9 @@ const els = {
   emptyRowTemplate: document.querySelector("#emptyRowTemplate"),
 };
 
-function parseEdifact(rawText) {
+function parseEdifact(rawText, options = {}) {
+  const retainSegments = Boolean(options.retainSegments);
+  const retainMeasurementRows = Boolean(options.retainMeasurementRows);
   const text = rawText.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
   const chars = detectServiceChars(text);
   const payload = text.startsWith("UNA") ? text.slice(9) : text;
@@ -228,7 +230,20 @@ function parseEdifact(rawText) {
   const measurementSeries = buildMeasurementSeries(measurementRows);
   const validation = validateInterchange(segments);
 
-  return { chars, segments, businessRows: null, measurementRows, measurementSeries, facts, validation };
+  return {
+    chars,
+    segments: retainSegments ? segments : [],
+    businessRows: null,
+    measurementRows: retainMeasurementRows ? measurementRows : null,
+    measurementSeries,
+    facts: {
+      ...facts,
+      segmentCount: segments.length,
+      measurementRowCount: measurementRows.length,
+      segmentDetailsRetained: retainSegments,
+    },
+    validation,
+  };
 }
 
 function detectServiceChars(text) {
@@ -831,7 +846,7 @@ function render() {
   els.windowTitle.textContent = getAppTitle();
   els.fileName.textContent = parsed ? formatDocumentSubtitle(parsed) : "Noch keine Datei";
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "-";
-  els.segmentCount.textContent = parsed ? `${parsed.segments.length} Segmente` : "0 Segmente";
+  els.segmentCount.textContent = parsed ? `${parsed.facts.segmentCount ?? parsed.segments.length} Segmente` : "0 Segmente";
 
   renderFacts(parsed);
   renderDocumentTabs();
@@ -901,7 +916,7 @@ function renderFacts(parsed) {
     ["Interchange", parsed.facts.interchangeRef || "-"],
     ["Syntax", parsed.facts.syntax || "-"],
     ["Trennzeichen", parsed.facts.separators],
-    ["Lastgänge", `${parsed.measurementSeries.length} Reihen / ${parsed.measurementRows.length} Werte`],
+    ["Lastgänge", `${parsed.measurementSeries.length} Reihen / ${parsed.facts.measurementRowCount ?? parsed.measurementRows?.length ?? 0} Werte`],
     ["Extrahiert", `${parsed.facts.references} Referenzen · ${parsed.facts.quantities} Mengen · ${parsed.facts.amounts} Beträge`],
   ];
 
@@ -2014,7 +2029,7 @@ function renderMsconsMerge(options = {}) {
     appendCell(tr, formatNumber(row.points.length), "num");
     appendCell(tr, `${formatSumNumber(row.sum)} kWh`, "num");
     appendCell(tr, `${formatSumNumber(row.annualSum)} kWh`, "num");
-    appendCell(tr, String(row.sourceFiles.size), "num");
+    appendCell(tr, String(row.sourceFileCount), "num");
     tbody.append(tr);
   }
   table.append(thead, tbody);
@@ -2045,7 +2060,7 @@ function buildMergedLoadProfiles() {
       if (!group.receiver && series.receiver) group.receiver = series.receiver;
       for (const point of series.points) {
         const pointKey = `${pointSortValue(point, "from") ?? point.from ?? ""}||${pointSortValue(point, "to") ?? point.to ?? ""}||${point.from || ""}||${point.to || ""}`;
-        group.pointMap.set(pointKey, { ...point, obis: series.obis, meteringPoint: series.meteringPoint });
+        group.pointMap.set(pointKey, point);
       }
     }
   }
@@ -2055,7 +2070,13 @@ function buildMergedLoadProfiles() {
     const sum = preciseSum(points.map((point) => point.quantity));
     const days = countProfileDays(points);
     return {
-      ...group,
+      key: group.key,
+      meteringPoint: group.meteringPoint,
+      obis: group.obis,
+      sender: group.sender,
+      receiver: group.receiver,
+      unit: group.unit,
+      sourceFileCount: group.sourceFiles.size,
       points,
       sum,
       days,
