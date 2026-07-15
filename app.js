@@ -1117,17 +1117,20 @@ function renderMeasurementTable(parsed) {
   els.messageType.textContent = parsed ? describeMessageType(parsed.facts.messageType) : "MSCONS";
   updateMeasurementHeader(["✓", "Zählpunkt", "OBIS", "von", "bis", "Menge", "Minimum", "Minimum am", "Maximum", "Maximum am", "Absender", "Empfänger"]);
   const rows = getFilteredMeasurementRows(parsed);
+  const summaries = rows.map((row) => summarizeSeries(row));
   const visibleRows = rows.slice(0, state.visibleMeasurementRows);
+  const visibleSummaries = summaries.slice(0, state.visibleMeasurementRows);
   renderSelectAllHeader(rows);
-  updateMeasurementFooter(visibleRows.length, rows);
+  updateMeasurementFooter(visibleRows.length, summaries);
   if (!rows.length) return appendEmpty(els.measurementTable, 12);
 
   const selectedExists = visibleRows.some((row) => row.key === state.selectedSeriesKey);
   if (!selectedExists && visibleRows[0]) state.selectedSeriesKey = visibleRows[0].key;
 
   const fragment = document.createDocumentFragment();
-  for (const row of visibleRows) {
-    const summary = summarizeSeries(row);
+  for (let index = 0; index < visibleRows.length; index += 1) {
+    const row = visibleRows[index];
+    const summary = visibleSummaries[index];
     const tr = document.createElement("tr");
     tr.dataset.key = row.key;
     if (row.key === state.selectedSeriesKey) tr.className = "is-selected";
