@@ -20,6 +20,7 @@ const state = {
   selectedSeriesKey: "",
   selectedPointIndex: null,
   selectedSeriesKeys: new Set(),
+  pvOrientation: "S",
   visibleMeasurementRows: 500,
   visiblePointRows: 500,
   visibleBusinessRows: 500,
@@ -52,6 +53,17 @@ let analysisUnlocked = false;
 let mergeRowsCache = [];
 const mergeSelectedKeys = new Set();
 const ZIP_CRC_TABLE = makeCrcTable();
+
+const PV_ORIENTATIONS = [
+  { value: "N", label: "Nord", yieldFactor: 0.55, weights: { 8: 0.15, 9: 0.2, 10: 0.25, 11: 0.3, 12: 0.35, 13: 0.3, 14: 0.25, 15: 0.2, 16: 0.15 } },
+  { value: "NO", label: "Nordost", yieldFactor: 0.7, weights: { 6: 0.35, 7: 0.55, 8: 0.75, 9: 0.85, 10: 0.75, 11: 0.55, 12: 0.35, 13: 0.2 } },
+  { value: "O", label: "Ost", yieldFactor: 0.82, weights: { 6: 0.45, 7: 0.7, 8: 0.9, 9: 1, 10: 0.9, 11: 0.75, 12: 0.55, 13: 0.35, 14: 0.15 } },
+  { value: "SO", label: "Suedost", yieldFactor: 0.94, weights: { 7: 0.35, 8: 0.6, 9: 0.85, 10: 1, 11: 0.95, 12: 0.85, 13: 0.65, 14: 0.4, 15: 0.2 } },
+  { value: "S", label: "Sued", yieldFactor: 1, weights: { 8: 0.25, 9: 0.55, 10: 0.8, 11: 1, 12: 1, 13: 1, 14: 0.8, 15: 0.55, 16: 0.25 } },
+  { value: "SW", label: "Suedwest", yieldFactor: 0.94, weights: { 10: 0.2, 11: 0.4, 12: 0.65, 13: 0.85, 14: 0.95, 15: 1, 16: 0.85, 17: 0.6, 18: 0.35 } },
+  { value: "W", label: "West", yieldFactor: 0.82, weights: { 11: 0.15, 12: 0.35, 13: 0.55, 14: 0.75, 15: 0.9, 16: 1, 17: 0.9, 18: 0.7, 19: 0.45 } },
+  { value: "NW", label: "Nordwest", yieldFactor: 0.7, weights: { 12: 0.2, 13: 0.35, 14: 0.55, 15: 0.75, 16: 0.85, 17: 0.75, 18: 0.55, 19: 0.35 } },
+];
 
 const SEGMENT_LABELS = {
   UNA: "Service-Zeichen",
@@ -1819,16 +1831,37 @@ function openPvAnalysis() {
 }
 
 function renderPvAnalysis() {
-  const rows = (state.parsed?.measurementSeries || []).map(analyzePvPotential).filter(Boolean);
+  const orientation = getPvOrientationConfig(state.pvOrientation);
+  const rows = (state.parsed?.measurementSeries || []).map((series) => analyzePvPotential(series, orientation)).filter(Boolean);
   els.analysisContent.innerHTML = "";
   if (!rows.length) {
     els.analysisContent.textContent = "Keine Lastgang-Zeitreihen fuer die Analyse gefunden.";
     return;
   }
 
+  const controls = document.createElement("div");
+  controls.className = "analysis-controls";
+  const orientationLabel = document.createElement("label");
+  orientationLabel.textContent = "Ausrichtung";
+  const orientationSelect = document.createElement("select");
+  orientationSelect.id = "pvOrientation";
+  for (const option of PV_ORIENTATIONS) {
+    const selectOption = document.createElement("option");
+    selectOption.value = option.value;
+    selectOption.textContent = option.label;
+    selectOption.selected = option.value === orientation.value;
+    orientationSelect.append(selectOption);
+  }
+  orientationSelect.addEventListener("change", () => {
+    state.pvOrientation = orientationSelect.value;
+    renderPvAnalysis();
+  });
+  orientationLabel.append(orientationSelect);
+  controls.append(orientationLabel);
+
   const note = document.createElement("p");
   note.className = "analysis-note";
-  note.textContent = "Hinweis: Die Werte sind eine Lastprofil-Heuristik ohne Standort, Dachflaeche, Ausrichtung, Verschattung, Strompreis und Einspeiseverguetung. Sie ersetzen keine technische oder wirtschaftliche Planung.";
+  note.textContent = `Hinweis: Die Werte sind eine Lastprofil-Heuristik mit Ausrichtung ${orientation.label}, aber ohne Standort, Dachflaeche, Neigung, Verschattung, Strompreis und Einspeiseverguetung. Sie ersetzen keine technische oder wirtschaftliche Planung.`;
 
   const tableWrap = document.createElement("div");
   tableWrap.className = "table-wrap analysis-table-wrap pv-analysis-table-wrap";
@@ -1836,7 +1869,7 @@ function renderPvAnalysis() {
   table.className = "analysis-table pv-analysis-table";
   const thead = document.createElement("thead");
   const header = document.createElement("tr");
-  for (const label of ["Zaehlpunkt", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschaetzung"]) {
+  for (const label of ["Zaehlpunkt", "Ausrichtung", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschaetzung"]) {
     const th = document.createElement("th");
     th.textContent = label;
     header.append(th);
@@ -1846,6 +1879,7 @@ function renderPvAnalysis() {
   for (const row of rows) {
     const tr = document.createElement("tr");
     appendCell(tr, row.meteringPoint);
+    appendCell(tr, row.orientationLabel);
     appendCell(tr, `${row.days} Tage${row.fullYear ? "" : " (kein volles Jahr)"}`);
     appendCell(tr, `${formatSumNumber(row.total)} kWh`, "pv-consumption-cell");
     appendCell(tr, `${formatNumber(row.pvShare)} %`);
@@ -1871,10 +1905,10 @@ function renderPvAnalysis() {
     details.append(card);
   }
 
-  els.analysisContent.append(note, tableWrap, details);
+  els.analysisContent.append(controls, note, tableWrap, details);
 }
 
-function analyzePvPotential(series) {
+function analyzePvPotential(series, orientation = getPvOrientationConfig()) {
   const points = series?.points || [];
   if (!points.length) return null;
 
@@ -1897,7 +1931,7 @@ function analyzePvPotential(series) {
     const day = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 
     totalUnits += valueUnits;
-    if (hour >= 8 && hour < 18) pvWindowUnits += valueUnits;
+    pvWindowUnits += Math.round(valueUnits * pvWeightForHour(orientation, hour));
     if (hour >= 10 && hour < 16) corePvWindowUnits += valueUnits;
     if (hour >= 18 && hour < 23) eveningUnits += valueUnits;
     if (hour >= 23 || hour < 6) nightUnits += valueUnits;
@@ -1920,24 +1954,29 @@ function analyzePvPotential(series) {
   const coreShare = percent(corePvWindow, total);
   const eveningShare = percent(evening, total);
   const nightShare = percent(night, total);
-  const pvLow = roundCapacity((annualTotal / 1000) * 0.45, 5);
-  const pvHigh = roundCapacity((annualTotal / 1000) * (pvShare >= 55 ? 0.75 : 0.9), 5);
-  const storageLow = roundCapacity(Math.max(avgDay * 0.1, eveningPerDay * 0.5), 5);
-  const storageHigh = roundCapacity(Math.max(avgDay * 0.22, eveningPerDay * 1.2), 5);
+  const orientationFactor = Math.max(orientation.yieldFactor, 0.1);
+  const pvLow = roundCapacity(((annualTotal / 1000) * 0.45) / orientationFactor, 5);
+  const pvHigh = roundCapacity(((annualTotal / 1000) * (pvShare >= 55 ? 0.75 : 0.9)) / orientationFactor, 5);
+  const storageLow = roundCapacity(Math.max(avgDay * 0.1, eveningPerDay * (orientation.value.includes("W") ? 0.4 : 0.5)), 5);
+  const storageHigh = roundCapacity(Math.max(avgDay * 0.22, eveningPerDay * (orientation.value.includes("W") ? 1 : 1.2)), 5);
   const recommendation = pvShare >= 55
     ? "PV sehr sinnvoll, Speicher moderat prüfen"
-    : eveningShare >= 22
+    : eveningShare >= 22 && !orientation.value.includes("W")
       ? "PV sinnvoll, Speicher als Variante interessant"
+      : orientation.value === "N"
+        ? "PV nur mit Flaechen-/Kostenpruefung sinnvoll"
       : "PV sinnvoll, Speicher optional";
   const detail = [
-    `${formatNumber(pvShare)} % des Verbrauchs liegen zwischen 08:00 und 18:00 Uhr, ${formatNumber(coreShare)} % im Kernfenster 10:00 bis 16:00 Uhr.`,
+    `${formatNumber(pvShare)} % des Verbrauchs liegen in der gewichteten PV-Zeit fuer ${orientation.label}; ${formatNumber(coreShare)} % liegen im Kernfenster 10:00 bis 16:00 Uhr.`,
     `${formatNumber(eveningShare)} % liegen abends und ${formatNumber(nightShare)} % nachts.`,
+    `Der grobe Ertragsfaktor der Ausrichtung liegt bei ${formatNumber(orientation.yieldFactor * 100)} % gegenueber Sued.`,
     fullYear ? "Die Zeitreihe deckt fast ein volles Jahr ab." : "Die Zeitreihe deckt kein volles Jahr ab; PV- und Speicherbereiche sind deshalb nur hochgerechnet.",
   ].join(" ");
 
   return {
     meteringPoint: series.meteringPoint,
     obis: series.obis,
+    orientationLabel: orientation.label,
     days,
     fullYear,
     total,
@@ -1956,6 +1995,14 @@ function analyzePvPotential(series) {
     firstTime,
     lastTime,
   };
+}
+
+function getPvOrientationConfig(value = state.pvOrientation) {
+  return PV_ORIENTATIONS.find((option) => option.value === value) || PV_ORIENTATIONS.find((option) => option.value === "S") || PV_ORIENTATIONS[0];
+}
+
+function pvWeightForHour(orientation, hour) {
+  return Number(orientation?.weights?.[hour]) || 0;
 }
 
 function percent(value, total) {

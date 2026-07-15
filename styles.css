@@ -819,6 +819,32 @@ td.num {
   line-height: 1.45;
 }
 
+.analysis-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.analysis-controls label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.analysis-controls select {
+  min-width: 150px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text-table);
+  font: inherit;
+}
+
 .analysis-table-wrap {
   max-height: 360px;
   border: 1px solid var(--line);

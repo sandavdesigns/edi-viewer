@@ -114,13 +114,26 @@ Wenn `APP_ANALYSIS_PASSWORD` gesetzt ist, fragt die App beim Öffnen nach dem Pa
 Die Analyse bewertet je Zeitreihe:
 
 - Jahres- bzw. Zeitraumverbrauch
-- Verbrauchsanteil in typischen PV-Zeiten
+- Verbrauchsanteil in ausrichtungsgewichteten PV-Zeiten
 - Abend- und Nachtanteile
 - grobe PV-Leistung in `kWp`
 - grobe Speichergröße in `kWh`
 - Hinweis, ob der Zeitraum ein volles Jahr abdeckt
 
-Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und kennt keinen Standort, keine Dachfläche, keine Dachausrichtung, keine Verschattung, keine Strompreise und keine Einspeisevergütung. Sie eignet sich als Vorabschätzung, nicht als finale Anlagenplanung.
+Im Dialog kann eine Dachausrichtung gewaehlt werden:
+
+- Nord
+- Nordost
+- Ost
+- Suedost
+- Sued
+- Suedwest
+- West
+- Nordwest
+
+Die Auswahl verschiebt die relevante PV-Zeit in Richtung Vormittag oder Nachmittag und gewichtet den groben Ertrag gegenueber einer Sued-Ausrichtung. Dadurch aendern sich PV-Zeitanteil, grobe kWp-Bandbreite und Speicherhinweis.
+
+Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und die gewaehlte Ausrichtung, kennt aber keinen Standort, keine Dachfläche, keine Dachneigung, keine Verschattung, keine Strompreise und keine Einspeisevergütung. Sie eignet sich als Vorabschätzung, nicht als finale Anlagenplanung.
 
 Wichtig: Da die App statisch im Browser läuft, ist `APP_ANALYSIS_PASSWORD` nur ein einfacher UI-Schutz. Es ist kein sicherer Zugriffsschutz für vertrauliche Funktionen.
 
