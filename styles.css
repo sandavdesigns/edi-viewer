@@ -160,6 +160,22 @@ select {
   font: inherit;
 }
 
+select {
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+body[data-theme="dark"] select,
+body[data-theme="dark"] select option {
+  background: var(--input-bg);
+  color: var(--text-table);
+}
+
 .app-header {
   position: sticky;
   top: 0;

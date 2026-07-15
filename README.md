@@ -103,7 +103,7 @@ Nach einer Änderung der Environment Variables muss der Stack in Portainer neu d
 
 ### Versteckte PV-Analyse
 
-Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Datei geöffnet werden. Optional schützt `APP_ANALYSIS_PASSWORD` den Aufruf mit einer Passwortabfrage. In der Analyse kann die Dachausrichtung von Nord ueber Ost/Sued/West bis zu den Zwischenrichtungen gewaehlt werden; PV-Zeitfenster, Ertragsfaktor und grobe Anlagenleistung werden entsprechend gewichtet. Da die App vollständig statisch im Browser läuft, ist das Passwort nur ein einfacher UI-Schutz und kein echtes Sicherheitskonzept.
+Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Datei geöffnet werden. Optional schützt `APP_ANALYSIS_PASSWORD` den Aufruf mit einer Passwortabfrage. In der Analyse kann die Dachausrichtung von Nord über Ost/Süd/West bis zu den Zwischenrichtungen gewählt werden; PV-Zeitfenster, Ertragsfaktor und grobe Anlagenleistung werden entsprechend gewichtet. Da die App vollständig statisch im Browser läuft, ist das Passwort nur ein einfacher UI-Schutz und kein echtes Sicherheitskonzept.
 
 ### MSCONS bündeln/trennen
 

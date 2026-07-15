@@ -120,20 +120,20 @@ Die Analyse bewertet je Zeitreihe:
 - grobe Speichergröße in `kWh`
 - Hinweis, ob der Zeitraum ein volles Jahr abdeckt
 
-Im Dialog kann eine Dachausrichtung gewaehlt werden:
+Im Dialog kann eine Dachausrichtung gewählt werden:
 
 - Nord
 - Nordost
 - Ost
-- Suedost
-- Sued
-- Suedwest
+- Südost
+- Süd
+- Südwest
 - West
 - Nordwest
 
-Die Auswahl verschiebt die relevante PV-Zeit in Richtung Vormittag oder Nachmittag und gewichtet den groben Ertrag gegenueber einer Sued-Ausrichtung. Dadurch aendern sich PV-Zeitanteil, grobe kWp-Bandbreite und Speicherhinweis.
+Die Auswahl verschiebt die relevante PV-Zeit in Richtung Vormittag oder Nachmittag und gewichtet den groben Ertrag gegenüber einer Süd-Ausrichtung. Dadurch ändern sich PV-Zeitanteil, grobe kWp-Bandbreite und Speicherhinweis.
 
-Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und die gewaehlte Ausrichtung, kennt aber keinen Standort, keine Dachfläche, keine Dachneigung, keine Verschattung, keine Strompreise und keine Einspeisevergütung. Sie eignet sich als Vorabschätzung, nicht als finale Anlagenplanung.
+Die Analyse ist eine Heuristik. Sie nutzt nur den Lastgang und die gewählte Ausrichtung, kennt aber keinen Standort, keine Dachfläche, keine Dachneigung, keine Verschattung, keine Strompreise und keine Einspeisevergütung. Sie eignet sich als Vorabschätzung, nicht als finale Anlagenplanung.
 
 Wichtig: Da die App statisch im Browser läuft, ist `APP_ANALYSIS_PASSWORD` nur ein einfacher UI-Schutz. Es ist kein sicherer Zugriffsschutz für vertrauliche Funktionen.
 

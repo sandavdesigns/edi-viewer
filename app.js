@@ -58,9 +58,9 @@ const PV_ORIENTATIONS = [
   { value: "N", label: "Nord", yieldFactor: 0.55, weights: { 8: 0.15, 9: 0.2, 10: 0.25, 11: 0.3, 12: 0.35, 13: 0.3, 14: 0.25, 15: 0.2, 16: 0.15 } },
   { value: "NO", label: "Nordost", yieldFactor: 0.7, weights: { 6: 0.35, 7: 0.55, 8: 0.75, 9: 0.85, 10: 0.75, 11: 0.55, 12: 0.35, 13: 0.2 } },
   { value: "O", label: "Ost", yieldFactor: 0.82, weights: { 6: 0.45, 7: 0.7, 8: 0.9, 9: 1, 10: 0.9, 11: 0.75, 12: 0.55, 13: 0.35, 14: 0.15 } },
-  { value: "SO", label: "Suedost", yieldFactor: 0.94, weights: { 7: 0.35, 8: 0.6, 9: 0.85, 10: 1, 11: 0.95, 12: 0.85, 13: 0.65, 14: 0.4, 15: 0.2 } },
-  { value: "S", label: "Sued", yieldFactor: 1, weights: { 8: 0.25, 9: 0.55, 10: 0.8, 11: 1, 12: 1, 13: 1, 14: 0.8, 15: 0.55, 16: 0.25 } },
-  { value: "SW", label: "Suedwest", yieldFactor: 0.94, weights: { 10: 0.2, 11: 0.4, 12: 0.65, 13: 0.85, 14: 0.95, 15: 1, 16: 0.85, 17: 0.6, 18: 0.35 } },
+  { value: "SO", label: "Südost", yieldFactor: 0.94, weights: { 7: 0.35, 8: 0.6, 9: 0.85, 10: 1, 11: 0.95, 12: 0.85, 13: 0.65, 14: 0.4, 15: 0.2 } },
+  { value: "S", label: "Süd", yieldFactor: 1, weights: { 8: 0.25, 9: 0.55, 10: 0.8, 11: 1, 12: 1, 13: 1, 14: 0.8, 15: 0.55, 16: 0.25 } },
+  { value: "SW", label: "Südwest", yieldFactor: 0.94, weights: { 10: 0.2, 11: 0.4, 12: 0.65, 13: 0.85, 14: 0.95, 15: 1, 16: 0.85, 17: 0.6, 18: 0.35 } },
   { value: "W", label: "West", yieldFactor: 0.82, weights: { 11: 0.15, 12: 0.35, 13: 0.55, 14: 0.75, 15: 0.9, 16: 1, 17: 0.9, 18: 0.7, 19: 0.45 } },
   { value: "NW", label: "Nordwest", yieldFactor: 0.7, weights: { 12: 0.2, 13: 0.35, 14: 0.55, 15: 0.75, 16: 0.85, 17: 0.75, 18: 0.55, 19: 0.35 } },
 ];
@@ -1835,7 +1835,7 @@ function renderPvAnalysis() {
   const rows = (state.parsed?.measurementSeries || []).map((series) => analyzePvPotential(series, orientation)).filter(Boolean);
   els.analysisContent.innerHTML = "";
   if (!rows.length) {
-    els.analysisContent.textContent = "Keine Lastgang-Zeitreihen fuer die Analyse gefunden.";
+    els.analysisContent.textContent = "Keine Lastgang-Zeitreihen für die Analyse gefunden.";
     return;
   }
 
@@ -1861,7 +1861,7 @@ function renderPvAnalysis() {
 
   const note = document.createElement("p");
   note.className = "analysis-note";
-  note.textContent = `Hinweis: Die Werte sind eine Lastprofil-Heuristik mit Ausrichtung ${orientation.label}, aber ohne Standort, Dachflaeche, Neigung, Verschattung, Strompreis und Einspeiseverguetung. Sie ersetzen keine technische oder wirtschaftliche Planung.`;
+  note.textContent = `Hinweis: Die Werte sind eine Lastprofil-Heuristik mit Ausrichtung ${orientation.label}, aber ohne Standort, Dachfläche, Neigung, Verschattung, Strompreis und Einspeisevergütung. Sie ersetzen keine technische oder wirtschaftliche Planung.`;
 
   const tableWrap = document.createElement("div");
   tableWrap.className = "table-wrap analysis-table-wrap pv-analysis-table-wrap";
@@ -1869,7 +1869,7 @@ function renderPvAnalysis() {
   table.className = "analysis-table pv-analysis-table";
   const thead = document.createElement("thead");
   const header = document.createElement("tr");
-  for (const label of ["Zaehlpunkt", "Ausrichtung", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschaetzung"]) {
+  for (const label of ["Zählpunkt", "Ausrichtung", "Zeitraum", "Verbrauch", "PV-Zeit", "Abend/Nacht", "PV grob", "Speicher grob", "Einschätzung"]) {
     const th = document.createElement("th");
     th.textContent = label;
     header.append(th);
@@ -1964,12 +1964,12 @@ function analyzePvPotential(series, orientation = getPvOrientationConfig()) {
     : eveningShare >= 22 && !orientation.value.includes("W")
       ? "PV sinnvoll, Speicher als Variante interessant"
       : orientation.value === "N"
-        ? "PV nur mit Flaechen-/Kostenpruefung sinnvoll"
+        ? "PV nur mit Flächen-/Kostenprüfung sinnvoll"
       : "PV sinnvoll, Speicher optional";
   const detail = [
-    `${formatNumber(pvShare)} % des Verbrauchs liegen in der gewichteten PV-Zeit fuer ${orientation.label}; ${formatNumber(coreShare)} % liegen im Kernfenster 10:00 bis 16:00 Uhr.`,
+    `${formatNumber(pvShare)} % des Verbrauchs liegen in der gewichteten PV-Zeit für ${orientation.label}; ${formatNumber(coreShare)} % liegen im Kernfenster 10:00 bis 16:00 Uhr.`,
     `${formatNumber(eveningShare)} % liegen abends und ${formatNumber(nightShare)} % nachts.`,
-    `Der grobe Ertragsfaktor der Ausrichtung liegt bei ${formatNumber(orientation.yieldFactor * 100)} % gegenueber Sued.`,
+    `Der grobe Ertragsfaktor der Ausrichtung liegt bei ${formatNumber(orientation.yieldFactor * 100)} % gegenüber Süd.`,
     fullYear ? "Die Zeitreihe deckt fast ein volles Jahr ab." : "Die Zeitreihe deckt kein volles Jahr ab; PV- und Speicherbereiche sind deshalb nur hochgerechnet.",
   ].join(" ");
 
