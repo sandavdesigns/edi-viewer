@@ -49,7 +49,6 @@ const marketDateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
 });
 const marketDateTimeCache = new Map();
 const systemDarkMode = window.matchMedia?.("(prefers-color-scheme: dark)");
-let analysisUnlocked = false;
 let mergeRowsCache = [];
 const mergeSelectedKeys = new Set();
 const ZIP_CRC_TABLE = makeCrcTable();
@@ -184,6 +183,7 @@ const els = {
   manualOpen: document.querySelector("#manualOpen"),
   manualClose: document.querySelector("#manualClose"),
   manualDialog: document.querySelector("#manualDialog"),
+  analysisOpen: document.querySelector("#analysisOpen"),
   analysisClose: document.querySelector("#analysisClose"),
   analysisDialog: document.querySelector("#analysisDialog"),
   analysisContent: document.querySelector("#analysisContent"),
@@ -1821,14 +1821,6 @@ function openPvAnalysis() {
     window.alert("Bitte zuerst eine MSCONS- oder ALOCAT-Datei laden.");
     return;
   }
-  if (runtimeConfig.analysisPassword && !analysisUnlocked) {
-    const value = window.prompt("Passwort für PV-Analyse");
-    if (value !== runtimeConfig.analysisPassword) {
-      window.alert("Passwort nicht korrekt.");
-      return;
-    }
-    analysisUnlocked = true;
-  }
   renderPvAnalysis();
   openDialog(els.analysisDialog);
 }
@@ -2837,6 +2829,10 @@ function wireEvents() {
     if (event.target === els.analysisDialog) closeDialog(els.analysisDialog);
   });
 
+  els.analysisOpen.addEventListener("click", () => {
+    openPvAnalysis();
+  });
+
   els.mergeOpen.addEventListener("click", () => {
     openMsconsMerge();
   });
@@ -2872,10 +2868,6 @@ function wireEvents() {
   document.addEventListener("keydown", (event) => {
     const shortcutKey = event.code || event.key;
     const key = (event.key || "").toLowerCase();
-    if (event.ctrlKey && event.altKey && (shortcutKey === "KeyP" || key === "p")) {
-      event.preventDefault();
-      openPvAnalysis();
-    }
     if (event.ctrlKey && event.altKey && (shortcutKey === "KeyM" || key === "m")) {
       event.preventDefault();
       openMsconsMerge();
@@ -3070,8 +3062,7 @@ function normalizeRuntimeConfig(config) {
   const rawTheme = String(config?.theme || "").trim().toLowerCase();
   const theme = ["energie", "energy", "brand", "custom"].includes(rawTheme) ? "energie" : "";
   const name = String(config?.name || "").trim();
-  const analysisPassword = String(config?.analysisPassword || "").trim();
-  return { theme, name, analysisPassword };
+  return { theme, name };
 }
 
 function applyRuntimeConfig() {

@@ -6,7 +6,6 @@ services:
     environment:
       APP_THEME: "${APP_THEME:-}"
       APP_NAME: "${APP_NAME:-}"
-      APP_ANALYSIS_PASSWORD: "${APP_ANALYSIS_PASSWORD:-}"
       THEME: "${THEME:-}"
       NAME: "${NAME:-}"
     command: >

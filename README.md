@@ -75,7 +75,6 @@ Am einfachsten wird das öffentliche GitHub-Repository direkt als Stack verwende
 APP_PORT=8090
 APP_THEME=energie
 APP_NAME=Energieportal
-APP_ANALYSIS_PASSWORD=mein-passwort
 ```
 
 8. Stack deployen.
@@ -101,9 +100,9 @@ APP_NAME=Energieportal
 
 Nach einer Änderung der Environment Variables muss der Stack in Portainer neu deployed werden. Falls der Browser noch das alte Design zeigt, einmal hart neu laden oder den Browser-Cache für die Seite leeren.
 
-### Versteckte PV-Analyse
+### PV-Auswertung
 
-Mit `Strg+Alt+P` kann eine versteckte PV-Potentialanalyse für die geladene Datei geöffnet werden. Optional schützt `APP_ANALYSIS_PASSWORD` den Aufruf mit einer Passwortabfrage. In der Analyse kann die Dachausrichtung von Nord über Ost/Süd/West bis zu den Zwischenrichtungen gewählt werden; PV-Zeitfenster, Ertragsfaktor und grobe Anlagenleistung werden entsprechend gewichtet. Da die App vollständig statisch im Browser läuft, ist das Passwort nur ein einfacher UI-Schutz und kein echtes Sicherheitskonzept.
+Über den Button **PV-Auswertung** kann eine PV-Potentialanalyse für die geladene Datei geöffnet werden. In der Analyse kann die Dachausrichtung von Nord über Ost/Süd/West bis zu den Zwischenrichtungen gewählt werden; PV-Zeitfenster, Ertragsfaktor und grobe Anlagenleistung werden entsprechend gewichtet.
 
 ### MSCONS bündeln/trennen
 
