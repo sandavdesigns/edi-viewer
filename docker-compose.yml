@@ -13,7 +13,7 @@ services:
       && rm -rf /usr/share/nginx/html/* /tmp/edi-viewer.tar.gz /tmp/edi-viewer-main
       && wget -O /tmp/edi-viewer.tar.gz https://github.com/sandavdesigns/edi-viewer/archive/refs/heads/main.tar.gz
       && tar -xzf /tmp/edi-viewer.tar.gz -C /tmp
-      && cp -r /tmp/edi-viewer-main/index.html /tmp/edi-viewer-main/styles.css /tmp/edi-viewer-main/app.js /tmp/edi-viewer-main/config.js /tmp/edi-viewer-main/config.template.js /tmp/edi-viewer-main/examples /usr/share/nginx/html/
+      && cp -r /tmp/edi-viewer-main/index.html /tmp/edi-viewer-main/styles.css /tmp/edi-viewer-main/app.js /tmp/edi-viewer-main/config.js /tmp/edi-viewer-main/config.template.js /tmp/edi-viewer-main/assets /tmp/edi-viewer-main/examples /usr/share/nginx/html/
       && envsubst < /usr/share/nginx/html/config.template.js > /usr/share/nginx/html/config.js
       && nginx -g 'daemon off;'"
     restart: unless-stopped

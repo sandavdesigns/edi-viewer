@@ -4,19 +4,24 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>EDI Viewer</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="app-header">
       <div class="brand-block">
-        <p class="eyebrow">EDI View</p>
-        <h1 id="windowTitle">Deutscher Strom- und Gasmarkt</h1>
+        <img class="brand-icon" src="assets/icon.svg" alt="" width="32" height="32" />
+        <div>
+          <p class="eyebrow">EDI View</p>
+          <h1 id="windowTitle">Deutscher Strom- und Gasmarkt</h1>
+        </div>
       </div>
       <div class="header-actions">
         <select id="themeMode" class="theme-select" aria-label="Darstellung">
+          <option value="light">☼ Hell</option>
+          <option value="dark">☾ Dunkel</option>
           <option value="auto">Auto</option>
-          <option value="light">Hell</option>
-          <option value="dark">Dunkel</option>
         </select>
         <button id="infoOpen" class="secondary-button" type="button">Datei Info</button>
         <button id="manualOpen" class="secondary-button" type="button">Handbuch</button>
