@@ -179,13 +179,12 @@ docker compose up -d
 
 ## Export
 
-Der CSV-Export exportiert Lastgänge:
+Die App bietet zwei CSV-Exporte für Lastgänge:
 
 - Wenn Lastgänge angehakt sind, werden die angehakten Lastgänge exportiert.
 - Wenn nichts angehakt ist, werden die aktuell gefilterten Lastgänge exportiert.
-- Bei mehreren Lastgängen werden die Kombinationen aus Zählpunkt und OBIS nebeneinander am gleichen Zeitpunkt ausgegeben.
-- Zahlen werden ohne Tausendertrennpunkt und mit Dezimalkomma exportiert.
-- Bei mehreren Lastgängen wird kein Status exportiert.
+- **CSV** erzeugt den breiten Export: Bei mehreren Lastgängen werden die Kombinationen aus Zählpunkt und OBIS nebeneinander am gleichen Zeitpunkt ausgegeben. Zahlen werden ohne Tausendertrennpunkt und mit Dezimalkomma exportiert. Bei mehreren Lastgängen wird kein Status exportiert.
+- **CSV lang** erzeugt eine Zeile je Messwert mit den Spalten `von`, `bis`, `location`, `Einheit`, `amount`. Die Zeitpunkte werden im Format `yyyy-mm-dd hh:mm:ss` und Werte mit Dezimalpunkt ausgegeben.
 
 Die Schaltfläche **Kopieren** kopiert die aktuell angezeigte Tabelle als tabulatorgetrennte Daten, sodass sie direkt in Excel eingefügt werden kann.
 

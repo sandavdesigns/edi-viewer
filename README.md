@@ -11,11 +11,11 @@ Browserbasierter EDIFACT-Viewer für MSCONS- und ALOCAT-Dateien im deutschen Str
 - Zeigt eine moderne Arbeitsansicht mit Lastgang-Tabelle, Grafik und kompaktem Info-Modal
 - Gruppiert MSCONS-Lastgänge nach Zählpunkt und OBIS-Code sowie ALOCAT-Reihen nach `ZEU` und `QTY`-Qualifier; die Einzelzeitpunkte werden als Verlaufspunkte zur ausgewählten Reihe angezeigt
 - Rechnet EDIFACT-Zeitstempel aus GMT/UTC automatisch in deutsche Marktzeit (`Europe/Berlin`) um, inklusive Sommer- und Winterzeit
-- Unterstützt Mehrfachauswahl von Lastgängen und CSV-Export der Zeitreihen mit formatierten `von`/`bis`-Zeitpunkten, `wert` und `status`
+- Unterstützt Mehrfachauswahl von Lastgängen sowie breite und lange CSV-Exporte der Zeitreihen
 - Der Button `Datei Info` öffnet wichtige Dateieigenschaften als Modal
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
-- Exportiert ausgewählte oder aktuell gefilterte Lastgänge als CSV
+- Exportiert ausgewählte oder aktuell gefilterte Lastgänge als CSV; `CSV` erzeugt eine breite Tabelle, `CSV lang` eine Zeile je Messwert mit `von`, `bis`, `location`, `Einheit`, `amount`
 
 ## Lokal öffnen
 

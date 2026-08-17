@@ -211,6 +211,7 @@ const els = {
   businessMore: document.querySelector("#businessMore"),
   segmentsMore: document.querySelector("#segmentsMore"),
   exportSegments: document.querySelector("#exportSegments"),
+  exportLongSegments: document.querySelector("#exportLongSegments"),
   emptyRowTemplate: document.querySelector("#emptyRowTemplate"),
 };
 
@@ -1670,6 +1671,19 @@ function formatCsvNumber(value) {
   return String(number).replace(".", ",");
 }
 
+function formatMachineCsvNumber(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value).replace(",", ".");
+  return String(number);
+}
+
+function formatExportUnit(value) {
+  const text = String(value || "").trim();
+  if (text.toUpperCase() === "KWH") return "kWh";
+  return text || "kWh";
+}
+
 function formatAxisDate(value) {
   const text = String(value || "");
   const formatted = formatDateTime(text);
@@ -1694,6 +1708,20 @@ function formatDateTime(value) {
   const hour = digits.slice(8, 10) || "00";
   const minute = digits.slice(10, 12) || "00";
   return `${day}.${month}.${year} ${hour}:${minute}`;
+}
+
+function formatIsoDateTime(value, sortValue = null) {
+  const formatted = formatDateTime(value);
+  const german = formatted.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})/);
+  if (german) return `${german[3]}-${german[2]}-${german[1]} ${german[4]}:${german[5]}:00`;
+  const time = sortValue ?? parseDateValue(value);
+  if (!time) {
+    return String(value || "");
+  }
+  const market = marketDateTimeFormatter.format(new Date(time));
+  const marketGerman = market.match(/^(\d{2})\.(\d{2})\.(\d{4}),?\s+(\d{2}):(\d{2})/);
+  if (marketGerman) return `${marketGerman[3]}-${marketGerman[2]}-${marketGerman[1]} ${marketGerman[4]}:${marketGerman[5]}:00`;
+  return String(value || "");
 }
 
 function parseDateInput(value, boundary = "start") {
@@ -2466,6 +2494,45 @@ function exportSelectedLoadProfiles(suffix) {
   download(`${baseName(state.fileName)}-${suffix}.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
 }
 
+function selectedLongLoadProfileRows(parsed, series) {
+  if (!parsed) return [];
+  const rows = [];
+  for (const row of series) {
+    const location = `${row.meteringPoint} | ${row.obis} wert`;
+    for (const point of getFilteredSeriesPoints(row)) {
+      const fromSort = pointSortValue(point, "from");
+      const toSort = pointSortValue(point, "to");
+      rows.push({
+        fromRaw: point.from || "",
+        toRaw: point.to || "",
+        fromSort,
+        toSort,
+        from: formatIsoDateTime(point.from, fromSort),
+        to: formatIsoDateTime(point.to, toSort),
+        location,
+        unit: formatExportUnit(point.unit || row.unit),
+        amount: point.quantity,
+      });
+    }
+  }
+  return rows.sort(compareExportPeriod);
+}
+
+function exportSelectedLoadProfilesLong() {
+  if (!state.parsed) return;
+  const series = selectedLoadProfileSeries(state.parsed);
+  const rows = selectedLongLoadProfileRows(state.parsed, series);
+  const columns = [
+    { label: "von", value: (row) => row.from },
+    { label: "bis", value: (row) => row.to },
+    { label: "location", value: (row) => row.location },
+    { label: "Einheit", value: (row) => row.unit },
+    { label: "amount", value: (row) => formatMachineCsvNumber(row.amount) },
+  ];
+  const csv = toCsv(rows, columns);
+  download(`${baseName(state.fileName)}-lastgang_long.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
+}
+
 function currentMeasurementCopyData() {
   if (!state.parsed) return { rows: [], columns: [] };
   if (state.measurementView === "points") {
@@ -3024,6 +3091,10 @@ function wireEvents() {
 
   els.exportSegments.addEventListener("click", () => {
     exportSelectedLoadProfiles("lastgang");
+  });
+
+  els.exportLongSegments.addEventListener("click", () => {
+    exportSelectedLoadProfilesLong();
   });
 
   els.chart.addEventListener("click", selectPointFromChart);
