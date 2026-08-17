@@ -15,7 +15,7 @@ Browserbasierter EDIFACT-Viewer für MSCONS- und ALOCAT-Dateien im deutschen Str
 - Der Button `Datei Info` öffnet wichtige Dateieigenschaften als Modal
 - Rendert große Dateien in Tabellen-Paketen, damit der Browser auch bei mehr MB großen EDIFACT-Dateien bedienbar bleibt
 - Liest Dateien mit UTF-8 oder Windows-1252, damit Umlaute in Zählpunkten korrekt angezeigt werden
-- Exportiert ausgewählte oder aktuell gefilterte Lastgänge als CSV; `CSV` erzeugt eine breite Tabelle, `CSV lang` eine Zeile je Messwert mit `von`, `bis`, `location`, `Einheit`, `amount`
+- Exportiert ausgewählte oder aktuell gefilterte Lastgänge als CSV; `CSV` erzeugt eine breite Tabelle, `CSV lang` eine Zeile je Messwert mit `von`, `bis`, `location`, `Einheit`, `amount`; Zahlen werden Excel-kompatibel mit Dezimalkomma ausgegeben
 
 ## Lokal öffnen
 

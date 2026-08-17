@@ -1671,13 +1671,6 @@ function formatCsvNumber(value) {
   return String(number).replace(".", ",");
 }
 
-function formatMachineCsvNumber(value) {
-  if (value === null || value === undefined || value === "") return "";
-  const number = Number(value);
-  if (!Number.isFinite(number)) return String(value).replace(",", ".");
-  return String(number);
-}
-
 function formatExportUnit(value) {
   const text = String(value || "").trim();
   if (text.toUpperCase() === "KWH") return "kWh";
@@ -2527,7 +2520,7 @@ function exportSelectedLoadProfilesLong() {
     { label: "bis", value: (row) => row.to },
     { label: "location", value: (row) => row.location },
     { label: "Einheit", value: (row) => row.unit },
-    { label: "amount", value: (row) => formatMachineCsvNumber(row.amount) },
+    { label: "amount", value: (row) => formatCsvNumber(row.amount) },
   ];
   const csv = toCsv(rows, columns);
   download(`${baseName(state.fileName)}-lastgang_long.csv`, "text/csv;charset=utf-8", `\uFEFF${csv}`);
